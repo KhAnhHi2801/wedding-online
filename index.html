@@ -71,13 +71,23 @@
   #resScore { font-size:44px; font-weight:800; color:#ff9ec4; }
   #resMsg { margin:6px 0 16px; color:#e6e8ff; }
   #result .row { display:flex; gap:10px; }
-  #result button { flex:1; padding:13px 8px; font-size:16px; font-weight:700; border-radius:12px; border:0; cursor:pointer; touch-action:manipulation; }
+  #result button { flex:1; padding:13px 8px; font-size:15px; font-weight:700; border-radius:12px; border:0; cursor:pointer; touch-action:manipulation; }
   #resAgain { background:rgba(255,255,255,.14); color:#fff; }
   #resDone { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
   #mute { position:absolute; top:calc(max(10px,env(safe-area-inset-top)) + 38px); right:max(10px,env(safe-area-inset-right)); width:38px; height:38px;
     border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(11,16,48,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
   #rhythm { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); transform:translateX(-50%); width:min(90vw,360px); height:min(50vh,400px);
     display:none; pointer-events:auto; touch-action:none; }
+  #songPick { position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:16px; pointer-events:auto; background:rgba(0,0,0,.35); }
+  #songPick .card { padding:18px; }
+  #songPick h2 { margin:0 0 4px; color:var(--gold); }
+  #songPick p { margin:0 0 12px; color:#cfd3ff; font-size:13px; }
+  .songBtn { display:block; width:100%; text-align:left; margin-bottom:8px; padding:12px 14px; border-radius:12px; border:2px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.08); color:#fff; cursor:pointer; touch-action:manipulation; font-size:17px; font-weight:700; }
+  .songBtn small { display:block; margin-top:2px; font-weight:400; font-size:12px; color:#cfd3ff; }
+  .songBtn:disabled { opacity:.6; cursor:wait; }
+  #songBack { width:100%; margin-top:4px; padding:11px; border-radius:12px; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:15px; cursor:pointer; }
+  #resPick { background:rgba(255,255,255,.14); color:#fff; }
   #knob { position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:50%; transform:translate(-50%,-50%);
     background:rgba(255,209,102,.75); border:2px solid #fff; }
 </style>
@@ -120,11 +130,18 @@
   <button id="actBtn" type="button">Bưng tráp</button>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
-    <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resDone" type="button">Tiếp tục</button></div>
+    <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resPick" type="button">Bài khác</button><button id="resDone" type="button">Tiếp tục</button></div>
+  </div></div>
+  <div id="songPick"><div class="card">
+    <h2>Chọn bài hát</h2><p>Chạm nốt theo nhạc. Lệch nhịp thì nhạc sẽ méo đấy!</p>
+    <div id="songList"></div>
+    <button id="songBack" type="button">Thôi, để sau</button>
   </div></div>
   <div id="joy"><div id="knob"></div></div>
 </div>
 
+<!-- Nhạc + bố cục nốt (sinh bởi tools/build-songs-data.py). Bước gộp một file cuối sẽ nhúng thẳng vào đây. -->
+<script src="songs-data.js"></script>
 <script type="module" id="game">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -879,9 +896,10 @@ addEventListener('keydown', (e) => {
   if (!G.started || G.act || !nearSpot || e.target instanceof HTMLInputElement) return;
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enterAct(nearSpot.act); }
 });
-function showResult({ title, score, msg, again, done }) {
+function showResult({ title, score, msg, again, pick, done }) {
   $('resTitle').textContent = title; $('resScore').textContent = '+' + score + ' Vui'; $('resMsg').textContent = msg;
   $('resAgain').onclick = () => { $('result').style.display = 'none'; again(); };
+  $('resPick').style.display = pick ? '' : 'none'; $('resPick').onclick = () => { $('result').style.display = 'none'; if (pick) pick(); };
   $('resDone').onclick = () => { $('result').style.display = 'none'; done(); };
   $('result').style.display = 'flex';
 }
@@ -1090,17 +1108,6 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
   },
   clap(vol) { this.noise(0.05, vol, 1500); },
-  sustain(freq) {                                   // âm kéo dài khi giữ nốt dài; trả về hàm dừng (null nếu không có âm thanh)
-    if (!this.ctx) return null;
-    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
-    o.type = 'triangle'; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.04);
-    o.connect(g); g.connect(this.master); o.start(t);
-    return () => {
-      const n = this.ctx.currentTime; g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0002), n);
-      g.gain.exponentialRampToValueAtTime(0.0001, n + 0.12); o.stop(n + 0.15);
-    };
-  },
 };
 $('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
 
@@ -1127,28 +1134,65 @@ function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'arm
    Nốt rơi xuống vạch tròn; chạm đúng lúc: ±0.10s "Cháy quá", ±0.20s "Được", ±0.30s "Lạc nhịp";
    không chạm → "Lạc nhịp". Không thua cuộc: điểm Vui = 20 + 80 × độ chính xác.
    ===================================================================== */
-const KARA = { bpm: 96, lead: 1.8, beats: 44, fall: 2.0, perfect: 0.13, good: 0.25, window: 0.38, holdSlack: 0.28 };   // nới cửa sổ chấm, nhịp chậm, nốt rơi chậm cho dễ bấm
+const KARA = { fall: 2.0, lead: 2.0, perfect: 0.13, good: 0.25, window: 0.38, holdSlack: 0.28 };   // cửa sổ chấm rộng, nốt rơi chậm cho dễ bấm
 const LANE_COL = ['#ff6b9d', '#ffd166', '#5ad1ff'], LANE_KEY = ['A', 'S', 'D'];
 const KEY_LANE = { KeyA: 0, ArrowLeft: 0, KeyS: 1, ArrowDown: 1, KeyW: 1, ArrowUp: 1, KeyD: 2, ArrowRight: 2 };
-const PENTA = [392, 440, 523.3, 587.3, 659.3, 784];                         // gam ngũ cung: nốt hát khi bắt trúng
-const LYRICS = ['Mừng ngày vui, trăm năm hạnh phúc', 'Ly này cụng nhé, cười thật rộn ràng', 'Cô dâu chú rể, tay trong tay nhau', 'Cả nhà cùng hát, chúc mừng đôi uyên ương'];   // lời tự soạn
+const WARP = { rate: 0.16, cutoffMax: 8000, cutoffMin: 700, vibratoCents: 70, duck: 0.25 };            // mức méo tối đa khi lệch nhịp (warp = 1)
 const rh = { g: null, W: 0, H: 0, dpr: 1 };
 
+/* Nhạc là mp3 thật (window.SONG_DATA từ songs-data.js), phát qua chuỗi Web Audio:
+   nguồn → lọc thông thấp → gain → master. Lệch nhịp thì `warp` tăng: hạ tông + chậm lại (playbackRate),
+   rung tông (LFO → detune), lọc đục, nhỏ tiếng; chơi đúng thì warp giảm dần về 0.
+   Nốt bám theo VỊ TRÍ NHẠC (pos), nên khi nhạc chậm lại thì nốt cũng chậm theo. */
 const karaokeAct = {
-  state: 'idle', t: 0, timer: 0, clock: 0, T0a: 0, useAudio: false, end: 0,
+  state: 'idle', t: 0, timer: 0, pos: 0, lastCt: null, lat: 0, end: 0, song: null, loading: false, mus: null, warp: 0, wv: 0, rate: 1,
   notes: [], total: 0, counts: [0, 0, 0], combo: 0, bestCombo: 0, pts: 0, q: 0,
-  hold: [null, null, null], stopSnd: [null, null, null], down: [false, false, false], ptr: new Map(),
+  hold: [null, null, null], down: [false, false, false], ptr: new Map(),
   fx: Array.from({ length: 8 }, () => ({ on: false, lane: 0, age: 0, kind: 0 })), fxI: 0, label: { text: '', color: '#fff', age: 9 },
 
   enter() {
-    $('rhythm').style.display = 'block'; this.resize(); player.tag.visible = false; couple.forEach((c) => { c.visible = false; });
-    showHint(isTouch ? 'Chạm nốt tròn · nốt dài thì giữ ngón tay đến hết vạch!' : 'Bấm nốt tròn · nốt dài thì giữ chuột/phím đến hết vạch (A · S · D)', 5000);
-    this.reset();
+    player.tag.visible = false; couple.forEach((c) => { c.visible = false; });
+    this.stage(); this.openPick();
   },
   exit() {
-    this.stopAll();
-    $('rhythm').style.display = 'none'; player.tag.visible = true; couple.forEach((c) => { c.visible = true; }); player.rig.body.rotation.z = 0; player.rig.body.position.y = 0;
+    this.stopMusic(); this.stopAll();
+    $('rhythm').style.display = 'none'; $('songPick').style.display = 'none';
+    player.tag.visible = true; couple.forEach((c) => { c.visible = true; }); player.rig.body.rotation.z = 0; player.rig.body.position.y = 0;
     player.x = 0; player.z = -13.2; player.rot = 0; player.group.position.set(0, 0, -13.2); crowd.target = 0;
+  },
+  stage() {                                         // lên sân khấu, quay mặt ra khán giả; camera sau lưng ca sĩ
+    player.x = 0; player.z = -15.4; player.rot = 0; player.group.position.set(0, 0.8, -15.4); player.group.rotation.y = 0;
+    cam.yaw = Math.PI; cam.pitch = 0.4; cam.dist = 4.4; cam.lookY = 1.2;
+  },
+  openPick() {
+    this.stopMusic(); this.stopAll(); this.state = 'pick'; this.t = 0; crowd.target = 0;
+    $('rhythm').style.display = 'none';
+    const list = $('songList'); list.textContent = '';
+    const songs = window.SONG_DATA || [];
+    if (!songs.length) { const p = document.createElement('p'); p.textContent = 'Chưa có bài hát nào (thiếu songs-data.js cạnh index.html).'; list.append(p); }
+    for (const s of songs) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'songBtn'; b.textContent = '♪ ' + s.title;
+      const m = document.createElement('small'); m.textContent = Math.round(s.dur) + ' giây · ' + s.chart.length + ' nốt'; b.append(m);
+      b.addEventListener('click', () => this.choose(s, b));
+      list.append(b);
+    }
+    $('songPick').style.display = 'flex';
+  },
+  async choose(song, btn) {                         // giải mã mp3 (lần đầu), rồi vào hát
+    if (this.loading) return; this.loading = true; audio.resume();
+    const old = btn.firstChild.textContent; btn.firstChild.textContent = '… đang tải nhạc'; btn.disabled = true;
+    try {
+      if (audio.ctx && !song.buf) {
+        const bin = atob(song.src.slice(song.src.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        song.buf = await audio.ctx.decodeAudioData(bytes.buffer);
+      }
+    } catch { showHint('Không giải mã được bài này, hãy thử bài khác', 3000); }
+    this.loading = false; btn.firstChild.textContent = old; btn.disabled = false;
+    if (G.act !== this) return;                     // người chơi đã thoát trong lúc tải
+    this.song = song; $('songPick').style.display = 'none'; $('rhythm').style.display = 'block'; this.resize();
+    showHint(isTouch ? 'Chạm nốt tròn · nốt dài thì giữ ngón tay đến hết vạch!' : 'Bấm nốt tròn · nốt dài thì giữ chuột/phím đến hết vạch (A · S · D)', 5000);
+    this.reset();
   },
   resize() {
     const cv = $('rhythm'), r = cv.getBoundingClientRect(); if (!r.width) return;
@@ -1156,47 +1200,44 @@ const karaokeAct = {
     if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
     rh.W = r.width; rh.H = r.height; rh.dpr = dpr; rh.g = cv.getContext('2d');
   },
-  stopAll() { for (let l = 0; l < 3; l++) { if (this.stopSnd[l]) { this.stopSnd[l](); this.stopSnd[l] = null; } this.hold[l] = null; this.down[l] = false; } this.ptr.clear(); },
-  makeChart() {                                     // bố cục cố định (seed) để lượt nào cũng công bằng. dur > 0 = nốt dài
-    const rng = mulberry32(20261105), beat = 60 / KARA.bpm, out = []; let lane = 1;
-    for (let b = 2; b < KARA.beats; b++) {
-      const r = rng(), move = () => { lane = clamp(lane + Math.floor(rng() * 3) - 1, 0, 2); };
-      if (r < 0.2 && b > 3 && b < KARA.beats - 3) {  // nốt dài 2–3 nhịp, các nhịp bị nó chiếm để trống cho dễ thở
-        const k = rng() < 0.6 ? 2 : 3; move();
-        out.push({ t: KARA.lead + b * beat, dur: (k - 0.5) * beat, lane, st: 0, k: 0 }); b += k - 1;
-      } else if (r < 0.75) {
-        move(); out.push({ t: KARA.lead + b * beat, dur: 0, lane, st: 0, k: 0 });
-        if (b % 2 === 1 && rng() < 0.15) out.push({ t: KARA.lead + (b + 0.5) * beat, dur: 0, lane: (lane + 1 + Math.floor(rng() * 2)) % 3, st: 0, k: 0 });
-      }
-    }
-    return out;                                     // đã sắp theo thời gian của đầu nốt
-  },
+  stopAll() { this.hold.fill(null); this.down.fill(false); this.ptr.clear(); },
   reset() {
-    this.stopAll(); this.notes = this.makeChart(); this.total = this.notes.length; this.counts = [0, 0, 0]; this.combo = this.bestCombo = this.pts = this.q = 0;
+    this.stopMusic(); this.stopAll(); this.stage();
+    this.notes = this.song.chart.map(([t, lane, dur]) => ({ t, lane, dur, st: 0, k: 0 })); this.total = this.notes.length;
+    this.counts = [0, 0, 0]; this.combo = this.bestCombo = this.pts = 0; this.q = 0.8; this.warp = this.wv = 0; this.rate = 1;   // q ban đầu cao: bài mở đầu sạch, chưa méo
     this.label.age = 9; this.fx.forEach((f) => { f.on = false; });
-    this.end = KARA.lead + KARA.beats * (60 / KARA.bpm) + 0.8;
-    player.x = 0; player.z = -15.4; player.rot = 0; player.group.position.set(0, 0.8, -15.4); player.group.rotation.y = 0;   // lên sân khấu, quay mặt ra khán giả
-    cam.yaw = Math.PI; cam.pitch = 0.4; cam.dist = 4.4; cam.lookY = 1.2;                                                   // camera sau lưng ca sĩ nhìn ra khán giả
-    crowd.target = 0.1; this.state = 'intro'; this.timer = 3.2; this.t = 0; this.clock = 0;
+    this.end = this.song.dur + 0.6;
+    crowd.target = 0.1; this.state = 'intro'; this.timer = 3.2; this.t = 0; this.pos = -KARA.lead;
   },
-  songTime() { return this.useAudio ? audio.ctx.currentTime - this.T0a : this.clock; },
+  songTime() { return this.pos - this.lat; },        // vị trí nhạc người chơi NGHE thấy (đã trừ độ trễ loa/tai nghe)
   startSong() {
-    this.state = 'play'; this.clock = 0; this.useAudio = !!(audio.ctx && audio.ctx.state === 'running');
-    this.T0a = audio.ctx ? audio.ctx.currentTime + 0.08 : 0;
-    this.scheduleBacking(); showHint('Hát nào!', 800);
-  },
-  scheduleBacking() {                               // nhạc nền hẹn giờ một lần: trống, chũm chọe, hợp âm, bass
-    if (!audio.ctx) return;
-    const beat = 60 / KARA.bpm, base = this.T0a + KARA.lead - audio.ctx.currentTime;
-    const chords = [[261.6, 329.6, 392], [220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7]];
-    for (let b = 0; b < KARA.beats; b++) {
-      const w = base + b * beat; if (w < 0) continue;
-      const ch = chords[Math.floor(b / 4) % 4];
-      audio.kick(w); audio.noise(0.04, 0.05, 7000, w + beat / 2); audio.tone(ch[0] / 2, beat * 0.9, 'sine', 0.16, w);
-      if (b % 4 === 0) ch.forEach((f) => audio.tone(f, beat * 3.6, 'triangle', 0.06, w));
+    this.state = 'play'; this.pos = -KARA.lead; const c = audio.ctx;
+    this.lastCt = c && c.state === 'running' ? c.currentTime : null;
+    this.lat = c ? clamp((c.outputLatency || 0) + (c.baseLatency || 0), 0, 0.3) : 0;
+    if (c && this.song.buf) {
+      const src = c.createBufferSource(), lp = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+      src.buffer = this.song.buf; lp.type = 'lowpass'; lp.frequency.value = WARP.cutoffMax; lp.Q.value = 0.7; g.gain.value = 1;
+      lfo.frequency.value = 5.2; lg.gain.value = 0; lfo.connect(lg); lg.connect(src.detune);
+      src.connect(lp); lp.connect(g); g.connect(audio.master);
+      src.start(c.currentTime + KARA.lead); lfo.start();
+      this.mus = { src, lp, g, lfo, lg };
     }
+    showHint('Hát nào!', 800);
   },
-  noteFreq(lane) { return PENTA[(lane * 2 + this.counts[0] + this.counts[1]) % 6]; },
+  stopMusic() {
+    const m = this.mus; if (!m) return; this.mus = null;
+    try { m.src.stop(); m.lfo.stop(); } catch { /* đã dừng */ }
+    m.src.disconnect(); m.lfo.disconnect(); m.lg.disconnect(); m.lp.disconnect(); m.g.disconnect();
+  },
+  applyWarp(dt) {                                   // cập nhật mức méo và áp lên chuỗi âm thanh
+    const target = clamp((0.55 - this.q) / 0.55, 0, 1) * 0.6;       // độ chính xác gần đây thấp → méo nền
+    if (this.warp > target) this.warp = Math.max(target, this.warp - (this.combo >= 3 ? 0.9 : 0.5) * dt); else this.warp += (target - this.warp) * (1 - Math.exp(-3 * dt));
+    this.wv += (this.warp - this.wv) * (1 - Math.exp(-12 * dt)); const w = this.wv;
+    this.rate = 1 - WARP.rate * w;
+    const m = this.mus; if (!m) return;
+    m.src.playbackRate.value = this.rate; m.lp.frequency.value = WARP.cutoffMin + (WARP.cutoffMax - WARP.cutoffMin) * (1 - w) * (1 - w);
+    m.lg.gain.value = WARP.vibratoCents * w; m.g.gain.value = 1 - WARP.duck * w;
+  },
   addFx(lane, kind) { const f = this.fx[this.fxI++ % this.fx.length]; f.on = true; f.lane = lane; f.age = 0; f.kind = kind; },
   press(lane) { this.down[lane] = true; this.tap(lane); },
   lift(lane) { this.down[lane] = false; this.release(lane); },
@@ -1212,8 +1253,7 @@ const karaokeAct = {
     const k = bd <= KARA.perfect ? 0 : bd <= KARA.good ? 1 : 2;
     if (best.dur > 0 && k < 2) {                    // nốt dài: bắt đầu giữ, chấm điểm khi nhả hoặc hết vạch
       best.st = 3; best.k = k; this.hold[lane] = best; this.addFx(lane, k);
-      this.label = { text: 'Giữ nào!', color: '#ffd166', age: 0 };
-      this.stopSnd[lane] = audio.sustain(this.noteFreq(lane));
+      this.label = { text: 'Giữ nào!', color: '#ffd166', age: 0 }; audio.tone(1760, 0.05, 'square', 0.04);
       return;
     }
     best.st = 1; this.judge(k, lane);
@@ -1222,40 +1262,37 @@ const karaokeAct = {
     const n = this.hold[lane]; if (!n) return;
     const s = this.songTime(); this.finishHold(n, s >= n.t + n.dur - KARA.holdSlack ? n.k : (s - n.t) / n.dur >= 0.5 ? Math.max(n.k, 1) : 2);
   },
-  finishHold(n, k) {
-    const l = n.lane; this.hold[l] = null; if (this.stopSnd[l]) { this.stopSnd[l](); this.stopSnd[l] = null; }
-    n.st = 1; this.judge(k, l, true);
-  },
+  finishHold(n, k) { this.hold[n.lane] = null; n.st = 1; this.judge(k, n.lane, true); },
   judge(k, lane, quiet) {                           // k: 0 Cháy quá, 1 Được, 2 Lạc nhịp
     this.counts[k]++; this.pts += [3, 2, 0][k];
-    if (k === 2) this.combo = 0; else { this.combo++; this.bestCombo = Math.max(this.bestCombo, this.combo); }
+    if (k === 2) { this.combo = 0; this.warp = Math.min(1, this.warp + 0.3); } else { this.combo++; this.bestCombo = Math.max(this.bestCombo, this.combo); }
     this.q += ([1, 0.6, 0][k] - this.q) * 0.3; crowd.target = 0.1 + 0.9 * this.q;
     this.label = { text: ['Cháy quá!', 'Được', 'Lạc nhịp'][k], color: ['#ffd166', '#7bed9f', '#ff7675'][k], age: 0 };
     this.addFx(lane, k);
-    if (quiet) return;
-    if (k < 2) audio.tone(this.noteFreq(lane), 0.35, 'triangle', 0.22); else audio.tone(140, 0.2, 'sawtooth', 0.08);
+    if (!quiet && k < 2) audio.tone(1760, 0.05, 'square', 0.04);   // tiếng "tách" nhẹ, để nhạc thật là chính
   },
   update(dt) {
     this.t += dt; this.label.age += dt;
     for (const f of this.fx) if (f.on) { f.age += dt; if (f.age > 0.4) f.on = false; }
     if (this.state === 'intro') { this.timer -= dt; if (this.timer <= 0) this.startSong(); }
     else if (this.state === 'play') {
-      this.clock += dt; const s = this.songTime();
+      // Tiến vị trí nhạc theo đồng hồ âm thanh (không theo dt khung hình, tránh lệch dần khi khung bị chậm); có méo thì nhân thêm tốc độ phát.
+      const c = audio.ctx, ct = c && c.state === 'running' ? c.currentTime : null;
+      const dA = ct !== null && this.lastCt !== null ? ct - this.lastCt : dt; this.lastCt = ct;
+      this.pos += dA * (this.pos < 0 ? 1 : this.rate); this.applyWarp(dt); const s = this.songTime();
       for (const n of this.notes) {
         if (n.t > s) break;
         if (n.st === 0 && s > n.t + KARA.window) { n.st = 2; this.judge(2, n.lane); }          // đầu nốt trôi qua không chạm
         else if (n.st === 3 && s >= n.t + n.dur) this.finishHold(n, n.k);                      // giữ đến hết vạch
       }
-      if (s >= this.end) {
-        this.stopAll(); this.state = 'outro'; this.timer = 1.2; crowd.target = 0.5 + 0.5 * (this.pts / (3 * this.total));
-      }
+      if (s >= this.end) { this.stopAll(); this.stopMusic(); this.state = 'outro'; this.timer = 1.2; crowd.target = 0.5 + 0.5 * (this.pts / (3 * this.total)); }
     } else if (this.state === 'outro') {
       this.timer -= dt; if (this.timer <= 0) { this.state = 'done'; this.showScore(); }
     }
-    this.poseSinger(); this.draw(this.state === 'play' ? this.songTime() : this.state === 'intro' ? 0 : this.end);
+    this.poseSinger(); if (this.state !== 'pick') this.draw(this.state === 'play' ? this.songTime() : this.state === 'intro' ? -KARA.lead : this.end);
   },
   poseSinger() {
-    const r = player.rig, ph = this.t * Math.PI * KARA.bpm / 60;
+    const r = player.rig, ph = this.t * Math.PI * 1.5;
     poseWalker(r, 0, 0, false);
     r.armR.rotation.x = -2.5; r.armL.rotation.x = -0.3 - Math.max(0, Math.sin(ph)) * 0.9;   // tay phải cầm mic, tay trái đưa theo nhịp
     r.body.rotation.z = Math.sin(ph * 0.5) * 0.07; r.body.position.y = Math.abs(Math.sin(ph)) * 0.05;
@@ -1266,9 +1303,10 @@ const karaokeAct = {
     party.add(score); $('rhythm').style.display = 'none';
     showResult({
       title: ratio >= 0.85 ? 'Giọng ca của tiệc!' : 'Bài hát kết thúc!', score,
-      msg: `Cháy quá ${p} · Được ${g} · Lạc nhịp ${m} · Combo cao nhất ${this.bestCombo}. ` +
+      msg: `${this.song.title}: Cháy quá ${p} · Được ${g} · Lạc nhịp ${m} · Combo cao nhất ${this.bestCombo}. ` +
         (ratio >= 0.85 ? 'Cả rạp đòi hát thêm bài nữa!' : ratio >= 0.55 ? 'Bà con vỗ tay rần rần!' : 'Hơi lạc nhịp nhưng vui là chính!'),
       again: () => { $('rhythm').style.display = 'block'; this.resize(); this.reset(); },
+      pick: () => this.openPick(),
       done: () => exitAct(),
     });
   },
@@ -1281,10 +1319,11 @@ const karaokeAct = {
     for (let l = 0; l < 3; l++) {
       g.fillStyle = this.down[l] ? 'rgba(255,255,255,.22)' : l % 2 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.09)'; g.fillRect(l * lw, 0, lw, H);
     }
-    const prog = clamp(s / this.end, 0, 1), li = Math.min(LYRICS.length - 1, Math.floor(prog * LYRICS.length));
+    const prog = clamp(s / this.end, 0, 1);
     g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, W, 5); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * prog, 5);
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = `700 15px ${FONT}`;
-    g.fillText(this.state === 'play' ? LYRICS[li] : '♪ Karaoke ♪', W / 2, 26, W - 20);
+    g.fillText('♪ ' + this.song.title + ' ♪', W / 2, 26, W - 20);
+    if (this.wv > 0.12) { g.globalAlpha = clamp(this.wv * 1.6, 0, 1); g.fillStyle = '#ffb347'; g.font = `700 13px ${FONT}`; g.fillText('♪ nhạc đang méo vì lạc nhịp ♪', W / 2 + Math.sin(this.t * 30) * 3 * this.wv, 46, W - 20); g.globalAlpha = 1; }
     for (let l = 0; l < 3; l++) {                   // vạch chạm
       const x = l * lw + lw / 2;
       g.beginPath(); g.arc(x, hitY, R + 4, 0, 6.2832); g.strokeStyle = LANE_COL[l]; g.lineWidth = 4; g.stroke();
@@ -1321,6 +1360,7 @@ const karaokeAct = {
     g.restore();
   },
 };
+$('songBack').addEventListener('click', () => { if (G.act === karaokeAct) exitAct(); });
 // Nhấn xuống = tap/bắt đầu giữ; nhả = kết thúc giữ. Mỗi ngón (pointerId) gắn với một làn.
 const rhythmEl = $('rhythm');
 rhythmEl.addEventListener('pointerdown', (e) => {
