@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1030">
+<title>Đi Đám Cưới Online</title>
+<style>
+  :root { --gold:#ffd166; --red:#d7263d; --ink:#0b1030; --card:rgba(18,12,36,.86); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:var(--ink); color:#fff;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; user-select:none; -webkit-user-select:none; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+  /* ---------- Màn chào ---------- */
+  #splash { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px;
+    background:radial-gradient(ellipse at 50% 30%, rgba(120,20,50,.55), rgba(8,10,34,.82) 70%);
+    z-index:20; transition:opacity .5s; overflow:auto; }
+  #splash.hide { opacity:0; pointer-events:none; }
+  .card { width:min(420px,100%); background:var(--card); border:1px solid rgba(255,209,102,.35); border-radius:22px;
+    padding:22px 20px 20px; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,.5); margin:auto; }
+  .card h1 { margin:0 0 2px; font-size:clamp(26px,7vw,34px); line-height:1.15; letter-spacing:.5px;
+    background:linear-gradient(180deg,#fff3b0,#ffb703); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .card .sub { margin:0 0 16px; color:#ffc2d1; font-size:14px; }
+  .card label { display:block; text-align:left; font-size:13px; color:#cfd3ff; margin:10px 2px 6px; }
+  #nameIn { width:100%; padding:13px 14px; font-size:17px; border-radius:12px; border:2px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.08); color:#fff; outline:none; user-select:text; -webkit-user-select:text; }
+  #nameIn:focus { border-color:var(--gold); }
+  #outfits { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .outfit { padding:10px 4px 8px; border-radius:12px; border:2px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06);
+    color:#fff; font-size:12.5px; cursor:pointer; touch-action:manipulation; }
+  .outfit i { display:block; width:30px; height:30px; margin:0 auto 6px; border-radius:50% 50% 8px 8px; border:2px solid rgba(255,255,255,.7); }
+  .outfit[aria-pressed="true"] { border-color:var(--gold); background:rgba(255,209,102,.16); }
+  #go { margin-top:18px; width:100%; padding:15px; font-size:19px; font-weight:700; border:0; border-radius:14px; cursor:pointer;
+    color:#4a0d1a; background:linear-gradient(180deg,#ffe28a,#ffb703); touch-action:manipulation; }
+  #go:disabled { opacity:.6; cursor:wait; }
+  #err { color:#ff9aa8; font-size:14px; margin-top:12px; display:none; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; display:none;
+    padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)); }
+  #counter { position:absolute; top:max(10px,env(safe-area-inset-top)); right:max(10px,env(safe-area-inset-right));
+    background:rgba(11,16,48,.7); border:1px solid rgba(255,209,102,.4); border-radius:999px; padding:6px 12px; font-size:12.5px; }
+  #counter b { color:var(--gold); }
+  #hint { position:absolute; left:50%; top:16%; transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
+    background:rgba(11,16,48,.72); border-radius:14px; padding:9px 14px; font-size:13.5px; transition:opacity .8s; }
+  #fps { position:absolute; left:10px; top:54px; font:12px monospace; color:#9f9; display:none; }
+  #joy { position:absolute; left:max(22px,env(safe-area-inset-left)); bottom:max(26px,env(safe-area-inset-bottom)); width:132px; height:132px;
+    border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.35); pointer-events:auto; touch-action:none; display:none; }
+  /* ---------- Điểm Vui, nút hành động, hoạt động ---------- */
+  #party { position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); width:min(44vw,190px); font-size:11.5px; }
+  #party .bar { height:12px; margin-top:3px; border-radius:99px; background:rgba(255,255,255,.18); border:1px solid rgba(255,209,102,.45); overflow:hidden; }
+  #partyFill { height:100%; width:0; background:linear-gradient(90deg,#ff7eb6,#ffd166); transition:width .8s; }
+  #actBtn { position:absolute; right:max(18px,env(safe-area-inset-right)); bottom:max(36px,env(safe-area-inset-bottom)); display:none; pointer-events:auto;
+    padding:18px 26px; font-size:20px; font-weight:800; border:0; border-radius:999px; color:#4a0d1a; cursor:pointer;
+    background:linear-gradient(180deg,#ffe28a,#ffb703); box-shadow:0 6px 20px rgba(0,0,0,.45); animation:pulse 1.2s infinite; touch-action:manipulation; }
+  @keyframes pulse { 50% { transform:scale(1.06); } }
+  #bal { position:absolute; left:50%; bottom:calc(max(24px,env(safe-area-inset-bottom)) + 36px); transform:translateX(-50%); width:min(88vw,360px);
+    display:none; text-align:center; background:rgba(11,16,48,.72); border-radius:16px; padding:10px 14px 12px; }
+  #bal.danger { box-shadow:0 0 0 3px rgba(255,70,90,.8); }
+  #balTitle { font-weight:700; font-size:15px; color:var(--gold); }
+  #balHint { font-size:12px; color:#cfd3ff; margin:2px 0 8px; }
+  .balTrack { position:relative; height:20px; border-radius:99px;
+    background:linear-gradient(90deg,#d7263d 0,#ffb703 22%,#2ecc71 40%,#2ecc71 60%,#ffb703 78%,#d7263d 100%); }
+  #balMark { position:absolute; top:-5px; left:50%; width:8px; height:30px; border-radius:4px; background:#fff; transform:translateX(-50%); box-shadow:0 0 6px rgba(0,0,0,.6); }
+  .progTrack { height:7px; margin-top:10px; border-radius:99px; background:rgba(255,255,255,.2); overflow:hidden; }
+  #progFill { height:100%; width:0; background:var(--gold); }
+  #result { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); pointer-events:auto; padding:16px; }
+  #result .card { padding:20px; }
+  #resTitle { margin:0 0 6px; font-size:24px; color:var(--gold); }
+  #resScore { font-size:44px; font-weight:800; color:#ff9ec4; }
+  #resMsg { margin:6px 0 16px; color:#e6e8ff; }
+  #result .row { display:flex; gap:10px; }
+  #result button { flex:1; padding:13px 8px; font-size:16px; font-weight:700; border-radius:12px; border:0; cursor:pointer; touch-action:manipulation; }
+  #resAgain { background:rgba(255,255,255,.14); color:#fff; }
+  #resDone { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
+  #mute { position:absolute; top:calc(max(10px,env(safe-area-inset-top)) + 38px); right:max(10px,env(safe-area-inset-right)); width:38px; height:38px;
+    border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(11,16,48,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
+  #rhythm { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); transform:translateX(-50%); width:min(90vw,360px); height:min(50vh,400px);
+    display:none; pointer-events:auto; touch-action:none; }
+  #knob { position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:50%; transform:translate(-50%,-50%);
+    background:rgba(255,209,102,.75); border:2px solid #fff; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="splash">
+  <div class="card">
+    <h1>Đi Đám Cưới Online</h1>
+    <p class="sub">Mời bạn vào dự tiệc cưới ♥</p>
+    <label for="nameIn">Tên của bạn</label>
+    <input id="nameIn" type="text" maxlength="16" placeholder="Khách quý" autocomplete="off">
+    <label>Chọn trang phục</label>
+    <div id="outfits"></div>
+    <button id="go" disabled>Đang dựng rạp…</button>
+    <div id="err">Không tải được Three.js từ CDN. Hãy kiểm tra kết nối mạng rồi tải lại trang.</div>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="counter">Hôm nay có <b id="count">0</b> người đi ăn cưới</div>
+  <div id="hint"></div>
+  <div id="fps"></div>
+  <button id="mute" type="button" aria-label="Bật/tắt tiếng">🔊</button>
+  <canvas id="rhythm"></canvas>
+  <div id="party"><span>Không khí tiệc</span><div class="bar"><div id="partyFill"></div></div></div>
+  <div id="bal">
+    <div id="balTitle">Giữ mâm quả thăng bằng!</div>
+    <div id="balHint"></div>
+    <div class="balTrack"><div id="balMark"></div></div>
+    <div class="progTrack"><div id="progFill"></div></div>
+  </div>
+  <button id="actBtn" type="button">Bưng tráp</button>
+  <div id="result"><div class="card">
+    <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
+    <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resDone" type="button">Tiếp tục</button></div>
+  </div></div>
+  <div id="joy"><div id="knob"></div></div>
+</div>
+
+<script type="module" id="game">
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* =====================================================================
+   1. CẤU HÌNH & DỮ LIỆU
+   ===================================================================== */
+const CFG = {
+  walkSpeed: 4.4,          // m/s
+  playerRadius: 0.4,
+  bounds: { minX: -15.0, maxX: 15.0, minZ: -19.0, maxZ: 24 },
+  camDist: 6.2, camHeight: 1.3, camPitchMin: 0.12, camPitchMax: 0.62, camPitchDefault: 0.36,
+  tentHalfW: 13, tentZ0: -19.6, tentZ1: 13.4, eaveY: 4.1, ridgeY: 5.8,
+  stage: { z0: -19.3, z1: -14.7, hw: 6.2, h: 0.8 },
+  coupleNames: 'Minh & Lan',      // tên chung chung, không phải người thật
+};
+
+// 6 bộ đồ. kind quyết định hình dáng thân.
+const OUTFITS = [
+  { name: 'Áo dài đỏ',  kind: 'aodai', top: 0xd7263d, bottom: 0xfff4e0, arm: 0xd7263d, hair: 0x2a1a14, bun: true,  swatch: '#d7263d' },
+  { name: 'Áo dài xanh', kind: 'aodai', top: 0x1f6fb2, bottom: 0xfff4e0, arm: 0x1f6fb2, hair: 0x1b1b1b, bun: false, swatch: '#1f6fb2' },
+  { name: 'Vest',       kind: 'suit',  top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false, swatch: '#23283b' },
+  { name: 'Váy hồng',   kind: 'dress', top: 0xff7eb6, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x3b2417, bun: true,  swatch: '#ff7eb6' },
+  { name: 'Sơ mi',      kind: 'shirt', top: 0xf4f4f4, bottom: 0x3b4a6b, arm: 0xf4f4f4, hair: 0x2a1a14, bun: false, swatch: '#f4f4f4' },
+  { name: 'Váy vàng',   kind: 'dress', top: 0xffc233, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: false, swatch: '#ffc233' },
+];
+
+const SKINS  = [0xffd9b8, 0xf2c29b, 0xe0a97c, 0xc68863];
+const HAIRS  = [0x15110f, 0x2a1a14, 0x3b2417];
+const SHIRTS = [0xe63946, 0xf4a261, 0x2a9d8f, 0x457b9d, 0xff6fb5, 0xffd166, 0x9b5de5, 0x06d6a0, 0xffffff, 0x118ab2];
+const PANTS  = [0x22223b, 0x3a3a5a, 0x4a3b2a, 0x2b2d42];
+
+const G = { started: false, ready: false, outfit: 0, name: 'Khách quý' };
+
+/* =====================================================================
+   2. TIỆN ÍCH
+   ===================================================================== */
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rand = mulberry32(20261104);               // cố định để bố cục NPC lặp lại được
+const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const $ = (id) => document.getElementById(id);
+
+const matCache = new Map();
+function M(color, opt) {                          // Lambert dùng chung theo màu
+  const key = color + (opt ? JSON.stringify(opt) : '');
+  let m = matCache.get(key);
+  if (!m) { m = new THREE.MeshLambertMaterial({ color, ...opt }); matCache.set(key, m); }
+  return m;
+}
+function put(parent, geo, mat, x = 0, y = 0, z = 0, cast = true, recv = true) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = recv; parent.add(m); return m;
+}
+const _o = new THREE.Object3D(), _l = new THREE.Object3D(), _m = new THREE.Matrix4(), _c = new THREE.Color();
+function makeInst(geo, mat, n, cast = true, recv = true) {
+  const m = new THREE.InstancedMesh(geo, mat, n); m.castShadow = cast; m.receiveShadow = recv; m.frustumCulled = false; return m;
+}
+function setInst(m, i, x, y, z, ry = 0, sx = 1, sy = sx, sz = sx, color = null) {
+  _o.position.set(x, y, z); _o.rotation.set(0, ry, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix();
+  m.setMatrixAt(i, _o.matrix); if (color !== null) m.setColorAt(i, _c.set(color));
+}
+function finishInst(m) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); draw(g, w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.userData = { g, c };
+  return t;
+}
+function heartPath(g, cx, cy, s) {
+  g.beginPath(); g.moveTo(cx, cy + s * 0.9);
+  g.bezierCurveTo(cx - s * 1.3, cy - s * 0.1, cx - s * 0.6, cy - s * 1.0, cx, cy - s * 0.35);
+  g.bezierCurveTo(cx + s * 0.6, cy - s * 1.0, cx + s * 1.3, cy - s * 0.1, cx, cy + s * 0.9); g.closePath();
+}
+function heartGeo(size, depth) {
+  const s = new THREE.Shape(); s.moveTo(0, -0.9);
+  s.bezierCurveTo(-1.3, 0.1, -0.6, 1.0, 0, 0.35); s.bezierCurveTo(0.6, 1.0, 1.3, 0.1, 0, -0.9);
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }); g.scale(size, size, 1); g.translate(0, 0, -depth / 2); return g;
+}
+const FONT = 'system-ui,"Segoe UI",Roboto,Arial,sans-serif';
+
+/* =====================================================================
+   3. RENDERER, CẢNH, ĐÈN
+   ===================================================================== */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b22);
+scene.fog = new THREE.Fog(0x070b22, 28, 85);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 220);
+const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+
+scene.add(new THREE.HemisphereLight(0x9aa6ff, 0x3a2a40, 1.7));
+const sun = new THREE.DirectionalLight(0xbfd0ff, 1.5);          // "ánh trăng" — nguồn đổ bóng duy nhất
+sun.position.set(-12, 28, 16); sun.target.position.set(0, 0, -3);
+sun.castShadow = true;
+const shRes = isTouch ? 1024 : 2048;
+sun.shadow.mapSize.set(shRes, shRes);
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 26, bottom: -26, near: 1, far: 80 });
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+
+const warmLights = [[-6, 4, 7], [6, 4, 7], [-6, 4, -5], [6, 4, -5], [0, 4.2, -11]].map(([x, y, z]) => {
+  const l = new THREE.PointLight(0xffc27a, 60, 20, 2); l.position.set(x, y, z); scene.add(l); return l;
+});
+const stageLight = new THREE.PointLight(0xff7ab8, 55, 14, 2); stageLight.position.set(0, 4.5, -16.5); scene.add(stageLight);
+
+/* =====================================================================
+   4. VA CHẠM — vòng tròn + hộp, đẩy người chơi ra (trượt dọc vật cản)
+   ===================================================================== */
+const circles = [], boxes = [];
+const addCircle = (x, z, r) => circles.push({ x, z, r });
+const addBox = (minX, maxX, minZ, maxZ) => boxes.push({ minX, maxX, minZ, maxZ });
+
+function resolveCollisions(p, r) {
+  for (let it = 0; it < 3; it++) {
+    for (const c of circles) {
+      const dx = p.x - c.x, dz = p.z - c.z, rr = r + c.r, d2 = dx * dx + dz * dz;
+      if (d2 < rr * rr) {
+        if (d2 < 1e-8) { p.x += rr; continue; }
+        const d = Math.sqrt(d2), k = (rr - d) / d; p.x += dx * k; p.z += dz * k;
+      }
+    }
+    for (const b of boxes) {
+      const nx = clamp(p.x, b.minX, b.maxX), nz = clamp(p.z, b.minZ, b.maxZ);
+      const dx = p.x - nx, dz = p.z - nz, d2 = dx * dx + dz * dz;
+      if (d2 >= r * r) continue;
+      if (d2 > 1e-8) { const d = Math.sqrt(d2), k = (r - d) / d; p.x += dx * k; p.z += dz * k; }
+      else {                                        // tâm nằm trong hộp: đẩy ra cạnh gần nhất
+        const l = p.x - b.minX, rt = b.maxX - p.x, t = p.z - b.minZ, bt = b.maxZ - p.z, m = Math.min(l, rt, t, bt);
+        if (m === l) p.x = b.minX - r; else if (m === rt) p.x = b.maxX + r; else if (m === t) p.z = b.minZ - r; else p.z = b.maxZ + r;
+      }
+    }
+  }
+  const B = CFG.bounds; p.x = clamp(p.x, B.minX, B.maxX); p.z = clamp(p.z, B.minZ, B.maxZ);
+}
+function isFree(x, z, rad) {                         // dùng khi rải NPC đứng
+  for (const c of circles) { const rr = rad + c.r; if ((x - c.x) ** 2 + (z - c.z) ** 2 < rr * rr) return false; }
+  for (const b of boxes) {
+    const dx = x - clamp(x, b.minX, b.maxX), dz = z - clamp(z, b.minZ, b.maxZ); if (dx * dx + dz * dz < rad * rad) return false;
+  }
+  return true;
+}
+
+/* =====================================================================
+   5. DỰNG BỐI CẢNH
+   ===================================================================== */
+const world = new THREE.Group(); scene.add(world);
+const blinkMats = [];                                // 3 nhóm bóng đèn nhấp nháy
+const tablePos = [];                                 // tâm các bàn tiệc
+const seats = [];                                    // ghế: dùng để xếp NPC ngồi
+const ledScreen = {};                                // màn LED (giai đoạn 2 sẽ ghi lời chúc)
+
+/* ---- 5.1 Mặt đất, sân, đường, thảm đỏ ---- */
+function buildGround() {
+  const flat = (w, d) => new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2);
+  put(world, flat(300, 300), M(0x14281d), 0, -0.03, 0, false, true);                 // cỏ ngoài
+  put(world, flat(31.4, 39), M(0x6b665d), 0, 0, -1.5, false, true);                  // sân gạch
+  put(world, flat(80, 12), M(0x2a2d3a), 0, -0.01, 24.2, false, true);                // đường
+  put(world, flat(26.8, 33), M(0x8a8478), 0, 0.01, (CFG.tentZ0 + CFG.tentZ1) / 2, false, true); // nền rạp
+  put(world, flat(2.4, 32.6), M(0xb3122f), 0, 0.02, 1.5, false, true);               // thảm đỏ
+  for (const sx of [-1, 1]) put(world, flat(0.12, 32.6), M(0xffd166), sx * 1.2, 0.025, 1.5, false, false);
+}
+
+/* ---- 5.2 Rạp bạt: mái sọc, cột, vách sau ---- */
+function buildTent() {
+  const W = CFG.tentHalfW + 0.4, { eaveY: e, ridgeY: r, tentZ0: z0, tentZ1: z1 } = CFG;
+  const len = z1 - z0, zc = (z0 + z1) / 2, L = Math.hypot(W, r - e), ang = Math.atan2(r - e, W);
+  const stripes = canvasTex(8, 64, (g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.fillStyle = '#d7263d'; g.fillRect(0, 0, w, h / 2); });
+  stripes.wrapS = stripes.wrapT = THREE.RepeatWrapping; stripes.repeat.set(1, 9);
+  // Mái quay mặt xuống: nhìn từ trong thấy mái, camera ở trên cao nhìn xuống không bị che.
+  const roofMat = new THREE.MeshLambertMaterial({ map: stripes });
+  const slope = new THREE.PlaneGeometry(L, len).rotateX(Math.PI / 2);
+  const left = put(world, slope, roofMat, -W / 2, (e + r) / 2, zc, false, false); left.rotation.z = ang;
+  const right = put(world, slope, roofMat, W / 2, (e + r) / 2, zc, false, false); right.rotation.z = -ang;
+
+  const zs = []; for (let z = z0 + 1; z <= z1 - 0.4; z += 6.4) zs.push(z);
+  const poleGeo = new THREE.CylinderGeometry(0.1, 0.12, e, 8);
+  const poles = makeInst(poleGeo, M(0xe8e2d0), zs.length * 2, true, false);
+  let i = 0;
+  for (const z of zs) for (const sx of [-1, 1]) {
+    setInst(poles, i++, sx * CFG.tentHalfW, e / 2, z); addCircle(sx * CFG.tentHalfW, z, 0.2);
+  }
+  finishInst(poles); world.add(poles);
+
+  const wallTex = canvasTex(256, 64, (g, w, h) => {  // rèm đỏ xếp nếp
+    for (let x = 0; x < w; x += 16) { g.fillStyle = (x / 16) % 2 ? '#6e0f22' : '#8a1630'; g.fillRect(x, 0, 16, h); }
+  });
+  wallTex.wrapS = THREE.RepeatWrapping; wallTex.repeat.set(2, 1);
+  put(world, new THREE.PlaneGeometry(27, 5.6), new THREE.MeshLambertMaterial({ map: wallTex }), 0, 2.8, z0 + 0.1, false, true);
+}
+
+/* ---- 5.3 Cổng hoa bóng bay + hàng rào ---- */
+function buildGate() {
+  const gz = 18, R = 3, cy = 2.2;
+  for (const sx of [-1, 1]) {
+    put(world, new THREE.CylinderGeometry(0.28, 0.32, cy, 10), M(0xfff4e0), sx * R, cy / 2, gz);
+    put(world, new THREE.CylinderGeometry(0.34, 0.34, 0.1, 10), M(0xffd166), sx * R, 0.9, gz);
+    addCircle(sx * R, gz, 0.45);
+  }
+  const N = 30, balloons = makeInst(new THREE.SphereGeometry(0.3, 10, 8), M(0xffffff), N * 2 + 12);
+  const flowers = makeInst(new THREE.IcosahedronGeometry(0.2, 0), M(0xffffff), N);
+  const bcol = [0xd7263d, 0xff7eb6, 0xffd166, 0xffffff, 0xff9ab0];
+  let bi = 0;
+  for (let i = 0; i < N; i++) {
+    const t = Math.PI * i / (N - 1), s = 1 + (i % 2) * 0.18;
+    setInst(balloons, bi++, Math.cos(t) * R, cy + Math.sin(t) * R, gz + Math.sin(i * 1.7) * 0.08, 0, s, s * 1.12, s, bcol[i % bcol.length]);
+    setInst(balloons, bi++, Math.cos(t) * (R - 0.25), cy + Math.sin(t) * (R - 0.25), gz + 0.28, 0, 0.7, 0.8, 0.7, bcol[(i + 2) % bcol.length]);
+    setInst(flowers, i, Math.cos(t) * R, cy + Math.sin(t) * R, gz + 0.32, i, 1, 1, 1, i % 3 ? 0xff5c8a : 0xfff4e0);
+  }
+  for (const sx of [-1, 1]) for (let k = 0; k < 6; k++)         // chùm bóng chân cổng
+    setInst(balloons, bi++, sx * (R + 0.35 + (k % 3) * 0.12), 0.7 + k * 0.28, gz + 0.35 + (k % 2) * 0.15, 0, 1, 1.1, 1, bcol[k % bcol.length]);
+  finishInst(balloons); finishInst(flowers); world.add(balloons, flowers);
+
+  const heart = put(world, heartGeo(0.5, 0.18), M(0xff3b6b, { emissive: 0x551020 }), 0, cy + R + 0.45, gz);
+  heart.castShadow = false;
+  const signTex = canvasTex(512, 128, (g, w, h) => {
+    g.fillStyle = '#7a0f24'; g.fillRect(0, 0, w, h); g.strokeStyle = '#ffd166'; g.lineWidth = 6; g.strokeRect(6, 6, w - 12, h - 12);
+    g.fillStyle = '#ffe28a'; g.font = `bold 50px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('CHÀO MỪNG QUÝ KHÁCH', w / 2, h / 2 + 3);
+  });
+  const signMat = new THREE.MeshBasicMaterial({ map: signTex });
+  for (const ry of [0, Math.PI]) { const s = put(world, new THREE.PlaneGeometry(3.4, 0.85), signMat, 0, 3.7, gz + (ry ? -0.02 : 0.02), false, false); s.rotation.y = ry; }
+  put(world, new THREE.BoxGeometry(0.05, 0.9, 0.05), M(0xffd166), -1.5, 4.5, gz, false, false);
+  put(world, new THREE.BoxGeometry(0.05, 0.9, 0.05), M(0xffd166), 1.5, 4.5, gz, false, false);
+
+  // Hàng rào trắng quanh sân; phía trước có khe cổng. Chỉ đoạn trước cần va chạm (biên đã chặn hai bên).
+  const fence = M(0xf1ece0), fh = 0.9;
+  for (const sx of [-1, 1]) {
+    const x0 = 3.7, x1 = 15.6, w = x1 - x0;
+    put(world, new THREE.BoxGeometry(w, fh, 0.2), fence, sx * (x0 + w / 2), fh / 2, gz);
+    addBox(sx > 0 ? x0 : -x1, sx > 0 ? x1 : -x0, gz - 0.25, gz + 0.25);
+    put(world, new THREE.BoxGeometry(0.2, fh, 38.6), fence, sx * 15.6, fh / 2, -1.3);
+  }
+  put(world, new THREE.BoxGeometry(31.4, fh, 0.2), fence, 0, fh / 2, -20.4);
+}
+
+/* ---- 5.4 Sân khấu: phông TÂN HÔN, màn LED, loa, micro, màn karaoke ---- */
+function buildStage() {
+  const S = CFG.stage, depth = S.z1 - S.z0, zc = (S.z0 + S.z1) / 2, W = S.hw * 2;
+  put(world, new THREE.BoxGeometry(W, S.h - 0.04, depth), M(0x7a1428), 0, (S.h - 0.04) / 2, zc);
+  put(world, new THREE.BoxGeometry(W, 0.04, depth), M(0x3a2a24), 0, S.h - 0.02, zc);
+  put(world, new THREE.BoxGeometry(W + 0.1, 0.06, 0.05), M(0xffd166), 0, 0.5, S.z1 + 0.03, false, false);
+  addBox(-S.hw - 0.05, S.hw + 0.05, S.z0 - 0.5, S.z1 + 0.15);
+
+  const bd = canvasTex(1200, 340, (g, w, h) => {              // phông chữ TÂN HÔN + hai trái tim
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#a31230'); gr.addColorStop(1, '#6e0f22');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#ffd166'; g.lineWidth = 10; g.strokeRect(10, 10, w - 20, h - 20);
+    g.lineWidth = 3; g.strokeRect(28, 28, w - 56, h - 56);
+    for (const [cx, s, col] of [[170, 88, '#ff7eb6'], [235, 52, '#fff'], [1030, 88, '#ff7eb6'], [965, 52, '#fff']]) {
+      heartPath(g, cx, h / 2 - 8, s); g.fillStyle = col; g.fill(); g.lineWidth = 5; g.strokeStyle = '#ffd166'; g.stroke();
+    }
+    const tg = g.createLinearGradient(0, 60, 0, 220); tg.addColorStop(0, '#fff3b0'); tg.addColorStop(1, '#ffb703');
+    g.font = `900 150px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineWidth = 10; g.strokeStyle = '#5a0a1c'; g.strokeText('TÂN HÔN', w / 2, h / 2 - 22);
+    g.fillStyle = tg; g.fillText('TÂN HÔN', w / 2, h / 2 - 22);
+    g.font = `600 46px ${FONT}`; g.fillStyle = '#ffe9ef'; g.fillText(CFG.coupleNames, w / 2, h - 66);
+  });
+  put(world, new THREE.BoxGeometry(9.3, 2.8, 0.1), M(0xffd166), 0, 3.75, S.z0 - 0.08, false, false);
+  put(world, new THREE.PlaneGeometry(9, 2.55), new THREE.MeshBasicMaterial({ map: bd }), 0, 3.75, S.z0 - 0.02, false, false);
+
+  // Màn LED: giai đoạn 2 sẽ gọi ledScreen.set(text) để hiện lời chúc.
+  const led = canvasTex(1200, 180, () => {});
+  ledScreen.tex = led;
+  ledScreen.set = (text) => {
+    const { g, c } = led.userData, w = c.width, h = c.height;
+    g.fillStyle = '#05060f'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#ffb703'; g.font = `bold 66px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 4);
+    g.fillStyle = 'rgba(0,0,0,.35)'; for (let y = 0; y < h; y += 5) g.fillRect(0, y, w, 1.5);
+    led.needsUpdate = true;
+  };
+  ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
+  put(world, new THREE.BoxGeometry(7.2, 1.2, 0.08), M(0x15151c), 0, 1.5, S.z0 + 0.1, false, false);
+  put(world, new THREE.PlaneGeometry(7, 1.05), new THREE.MeshBasicMaterial({ map: led }), 0, 1.5, S.z0 + 0.16, false, false);
+
+  for (const sx of [-1, 1]) {                                  // rèm hai bên + trái tim 3D
+    put(world, new THREE.BoxGeometry(1.5, 4.4, 0.15), M(0x8a1630), sx * 5.4, 3.0, S.z0 + 0.2, false, true);
+    const h3 = put(world, heartGeo(0.6, 0.15), M(0xff3b6b, { emissive: 0x551020 }), sx * 5.4, 4.7, S.z0 + 0.4, false, false);
+    h3.rotation.z = sx * 0.2;
+  }
+  // Loa trên sân khấu
+  for (const sx of [-1, 1]) {
+    put(world, new THREE.BoxGeometry(0.8, 1.5, 0.7), M(0x18181f), sx * 5.2, S.h + 0.75, S.z0 + 1.0);
+    for (const y of [0.4, 1.0]) put(world, new THREE.CylinderGeometry(0.22, 0.22, 0.04, 14).rotateX(Math.PI / 2), M(0x3a3a48), sx * 5.2, S.h + y, S.z0 + 1.37, false, false);
+  }
+  // Micro + chân
+  put(world, new THREE.CylinderGeometry(0.02, 0.025, 1.4, 6), M(0x222222), 1.8, S.h + 0.7, -16.4);
+  put(world, new THREE.CylinderGeometry(0.2, 0.2, 0.03, 10), M(0x222222), 1.8, S.h + 0.015, -16.4);
+  put(world, new THREE.SphereGeometry(0.06, 8, 6), M(0x888888), 1.8, S.h + 1.44, -16.4, false, false);
+
+  // Màn karaoke trên giá
+  const kt = canvasTex(512, 288, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#1b2a8a'); gr.addColorStop(1, '#6a1b9a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#fff'; g.font = `bold 62px ${FONT}`; g.textAlign = 'center'; g.fillText('KARAOKE', w / 2, 110);
+    g.fillStyle = '#ffd166'; g.font = `32px ${FONT}`; g.fillText('♪  Hát cho nhau nghe  ♪', w / 2, 175);
+    g.fillStyle = 'rgba(255,255,255,.65)'; g.fillRect(70, 215, 370, 8); g.fillStyle = '#ff7eb6'; g.fillRect(70, 215, 160, 8);
+  });
+  const tv = new THREE.Group(); tv.position.set(-3.6, S.h, -16.6); tv.rotation.y = 0.25; world.add(tv);
+  put(tv, new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), M(0x222222), 0, 0.55, 0);
+  put(tv, new THREE.CylinderGeometry(0.28, 0.28, 0.04, 10), M(0x222222), 0, 0.02, 0);
+  put(tv, new THREE.BoxGeometry(1.75, 1.0, 0.08), M(0x111118), 0, 1.45, 0);
+  put(tv, new THREE.PlaneGeometry(1.62, 0.9), new THREE.MeshBasicMaterial({ map: kt }), 0, 1.45, 0.05, false, false);
+
+  // Loa kéo dưới sàn (cạnh sân khấu, có va chạm)
+  const lk = new THREE.Group(); lk.position.set(-8.0, 0, -13.4); lk.rotation.y = 0.35; world.add(lk);
+  put(lk, new THREE.BoxGeometry(0.55, 0.9, 0.42), M(0x2a6fdb), 0, 0.55, 0);
+  put(lk, new THREE.CylinderGeometry(0.17, 0.17, 0.03, 14).rotateX(Math.PI / 2), M(0x1a1a22), 0, 0.5, 0.22, false, false);
+  put(lk, new THREE.CylinderGeometry(0.02, 0.02, 0.5, 5), M(0x999999), 0.2, 1.25, 0, false, false);
+  for (const sx of [-1, 1]) put(lk, new THREE.CylinderGeometry(0.1, 0.1, 0.06, 10).rotateZ(Math.PI / 2), M(0x111111), sx * 0.3, 0.1, 0.1);
+  addCircle(-8.0, -13.4, 0.5);
+
+  // Bó bóng hai bên sân khấu
+  const bl = makeInst(new THREE.SphereGeometry(0.28, 10, 8), M(0xffffff), 14);
+  const bc = [0xd7263d, 0xff7eb6, 0xffd166, 0xffffff];
+  for (let k = 0; k < 7; k++) for (const sx of [-1, 1])
+    setInst(bl, k * 2 + (sx > 0 ? 1 : 0), sx * (6.9 + (k % 3) * 0.25), 2.6 + (k % 4) * 0.35, S.z1 - 0.8 + (k % 2) * 0.3, 0, 1, 1.12, 1, bc[k % 4]);
+  finishInst(bl); world.add(bl);
+}
+
+/* ---- 5.5 Bàn tiệc tròn: khăn đỏ, ghế nhựa, bát đĩa, bia, nước ngọt, hoa ---- */
+function buildTables() {
+  const cols = [-5.2, 5.2];
+  for (const x of cols) for (const z of [10, 4, -2, -8]) tablePos.push({ x, z });
+  tablePos.push({ x: -10.8, z: 1 }, { x: 10.8, z: 1 });
+  const T = tablePos.length, SEATS = 6;
+
+  const cloth = makeInst(new THREE.CylinderGeometry(1.2, 1.32, 0.78, 20), M(0xc1121f), T);
+  const doily = makeInst(new THREE.CylinderGeometry(0.55, 0.55, 0.02, 16), M(0xfff4e0), T, false, true);
+  const vase = makeInst(new THREE.CylinderGeometry(0.07, 0.1, 0.22, 8), M(0xffd166), T, true, false);
+  const bloom = makeInst(new THREE.IcosahedronGeometry(0.17, 0), M(0xffffff), T * 2, true, false);
+  const plates = makeInst(new THREE.CylinderGeometry(0.16, 0.13, 0.025, 12), M(0xffffff), T * SEATS, false, true);
+  const bottles = makeInst(new THREE.CylinderGeometry(0.04, 0.045, 0.3, 6), M(0xffffff), T * 4, true, false);
+
+  // Ghế nhựa: gộp 7 khối thành một geometry để mỗi ghế chỉ tốn một instance.
+  const part = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+  const chairGeo = mergeGeometries([
+    part(0.46, 0.05, 0.46, 0, 0.45, 0), part(0.46, 0.42, 0.05, 0, 0.72, -0.21),
+    part(0.04, 0.45, 0.04, -0.19, 0.225, -0.19), part(0.04, 0.45, 0.04, 0.19, 0.225, -0.19),
+    part(0.04, 0.45, 0.04, -0.19, 0.225, 0.19), part(0.04, 0.45, 0.04, 0.19, 0.225, 0.19),
+  ]);
+  const chairs = makeInst(chairGeo, M(0xf5f1e6), T * SEATS);
+
+  const drinkCol = [0x2f7a3a, 0xb36a1d, 0xff8c1a, 0xd9d9d9], blooms = [0xff5c8a, 0xfff4e0, 0xffd166];
+  let pi = 0, ci = 0, bi = 0;
+  tablePos.forEach((t, ti) => {
+    setInst(cloth, ti, t.x, 0.39, t.z); setInst(doily, ti, t.x, 0.785, t.z); setInst(vase, ti, t.x, 0.9, t.z);
+    setInst(bloom, ti * 2, t.x, 1.06, t.z, 0, 1, 1, 1, pick(blooms)); setInst(bloom, ti * 2 + 1, t.x + 0.1, 1.0, t.z + 0.05, 0, 0.75, 0.75, 0.75, pick(blooms));
+    addCircle(t.x, t.z, 1.95);                                  // gồm cả vòng ghế: gọn, đủ dùng cho giai đoạn 1
+    for (let k = 0; k < SEATS; k++) {
+      const a = k * (Math.PI * 2 / SEATS) + Math.PI / 6, dx = Math.cos(a), dz = Math.sin(a);
+      setInst(chairs, ti * SEATS + k, t.x + dx * 1.75, 0, t.z + dz * 1.75, Math.atan2(-dx, -dz));
+      setInst(plates, pi++, t.x + dx * 0.88, 0.8, t.z + dz * 0.88);
+      seats.push({ x: t.x + dx * 1.66, z: t.z + dz * 1.66, rot: Math.atan2(-dx, -dz) });
+    }
+    for (let k = 0; k < 4; k++) {
+      const a = k * 1.57 + 0.6;
+      setInst(bottles, bi, t.x + Math.cos(a) * 0.38, k === 3 ? 0.93 : 0.94, t.z + Math.sin(a) * 0.38, 0, 1, k === 3 ? 0.55 : 1, 1, drinkCol[k]); bi++;
+    }
+  });
+  [cloth, doily, vase, bloom, plates, bottles, chairs].forEach((m) => { finishInst(m); world.add(m); });
+}
+
+/* ---- 5.6 Tháp ly champagne, bánh kem nhiều tầng, thùng phong bì ---- */
+function buildFeatures() {
+  const clothTable = (x, z, r, h, col) => { put(world, new THREE.CylinderGeometry(r, r * 1.1, h, 16), M(col), x, h / 2, z); addCircle(x, z, r * 1.1 + 0.05); };
+  // Tháp ly
+  const tx = -3.4, tz = -12.6, topY = 0.85;
+  clothTable(tx, tz, 0.8, topY, 0xfff4e0);
+  const levels = [{ r: 0.55, n: 12, y: 0 }, { r: 0.38, n: 8, y: 0.26 }, { r: 0.22, n: 5, y: 0.52 }, { r: 0, n: 1, y: 0.78 }];
+  const glassMat = new THREE.MeshLambertMaterial({ color: 0xbfe9ff, transparent: true, opacity: 0.55, depthWrite: false });
+  const cups = makeInst(new THREE.CylinderGeometry(0.075, 0.04, 0.13, 8), glassMat, 26, false, false);
+  let n = 0;
+  for (const L of levels) {
+    for (let k = 0; k < L.n; k++) { const a = k / L.n * Math.PI * 2; setInst(cups, n++, tx + Math.cos(a) * L.r, topY + L.y + 0.09, tz + Math.sin(a) * L.r); }
+    put(world, new THREE.CylinderGeometry(L.r + 0.14, L.r + 0.14, 0.025, 16), M(0xe9f6ff), tx, topY + L.y + 0.01, tz, true, true);
+  }
+  finishInst(cups); world.add(cups);
+  put(world, new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), M(0xffd166), tx, topY + 0.4, tz);
+  // Bánh kem 3 tầng
+  const cx = 3.4, cz = -12.6;
+  clothTable(cx, cz, 0.8, topY, 0xc1121f);
+  const tiers = [[0.52, 0.3, 0xfff0f5], [0.37, 0.26, 0xffc2d6], [0.23, 0.22, 0xfff0f5]];
+  let y = topY;
+  for (const [r, h, col] of tiers) { put(world, new THREE.CylinderGeometry(r, r, h, 20), M(col), cx, y + h / 2, cz); put(world, new THREE.TorusGeometry(r, 0.025, 6, 20).rotateX(Math.PI / 2), M(0xff7eb6), cx, y + h, cz, false, false); y += h; }
+  put(world, heartGeo(0.12, 0.05), M(0xff3b6b), cx, y + 0.13, cz, false, false);
+
+  // Thùng phong bì: bàn nhỏ + hộp đỏ có khe + biển chữ
+  const ex = 2.6, ez = 12.2;
+  put(world, new THREE.CylinderGeometry(0.5, 0.55, 0.85, 14), M(0xfff4e0), ex, 0.425, ez); addCircle(ex, ez, 0.6);
+  put(world, new THREE.BoxGeometry(0.55, 0.5, 0.4), M(0xd7263d), ex, 1.1, ez);
+  put(world, new THREE.BoxGeometry(0.3, 0.025, 0.04), M(0x1a0a0a), ex, 1.36, ez + 0.02, false, false);
+  put(world, new THREE.BoxGeometry(0.6, 0.04, 0.45), M(0xffd166), ex, 1.36, ez, false, false);
+  const lbl = canvasTex(256, 128, (g, w, h) => {
+    g.fillStyle = '#d7263d'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffe28a'; g.font = `bold 44px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('PHONG BÌ', w / 2, h / 2 + 2);
+  });
+  put(world, new THREE.PlaneGeometry(0.46, 0.23), new THREE.MeshBasicMaterial({ map: lbl }), ex, 1.08, ez + 0.205, false, false);
+}
+
+/* ---- 5.7 Hoa giả dọc thảm, dây đèn nhấp nháy, nhà + cây + sao ---- */
+function buildDecor() {
+  // Chậu hoa dọc hai mép thảm (có va chạm nhẹ)
+  const zs = [9, 6, 3, 0, -3, -6, -9];
+  const pots = makeInst(new THREE.CylinderGeometry(0.22, 0.16, 0.4, 8), M(0xfff4e0), zs.length * 2);
+  const blooms = makeInst(new THREE.IcosahedronGeometry(0.3, 0), M(0xffffff), zs.length * 2 * 2, true, false);
+  const pc = [0xff5c8a, 0xfff4e0, 0xff9ab0, 0xffd166]; let i = 0, b = 0;
+  for (const z of zs) for (const sx of [-1, 1]) {
+    setInst(pots, i++, sx * 1.95, 0.2, z); addCircle(sx * 1.95, z, 0.3);
+    setInst(blooms, b++, sx * 1.95, 0.62, z, 0, 1, 1, 1, pc[b % 4]); setInst(blooms, b++, sx * 1.95 + 0.12, 0.85, z + 0.05, 0, 0.7, 0.7, 0.7, pc[(b + 1) % 4]);
+  }
+  [pots, blooms].forEach((m) => { finishInst(m); world.add(m); });
+
+  // Dây đèn: bóng nằm dưới mái; 3 nhóm với pha nhấp nháy khác nhau.
+  const bulbColors = [0xffd27a, 0xff8fb8, 0x9be7ff, 0xfff1c9], pts = [];
+  const roofY = (x) => CFG.eaveY + (CFG.ridgeY - CFG.eaveY) * (1 - Math.abs(x) / (CFG.tentHalfW + 0.4)) - 0.14;
+  for (const z of [-17, -12, -7, -2, 3, 8, 12]) for (let x = -12.5; x <= 12.5; x += 1) pts.push([x, roofY(x), z]);
+  for (const sx of [-1, 1]) for (let z = -18.8; z <= 13; z += 0.8) pts.push([sx * 12.9, CFG.eaveY - 0.1 - Math.sin((z + 18.8) / 6.4 * Math.PI) * 0.15, z]);
+  const bulbGeo = new THREE.SphereGeometry(0.07, 6, 4), groups = [[], [], []];
+  pts.forEach((p, k) => groups[k % 3].push(p));
+  groups.forEach((arr, gi) => {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff }); blinkMats.push(mat);
+    const m = makeInst(bulbGeo, mat, arr.length, false, false);
+    arr.forEach((p, k) => setInst(m, k, p[0], p[1], p[2], 0, 1, 1, 1, bulbColors[(k + gi) % 4]));
+    finishInst(m); world.add(m);
+  });
+
+  // Nhà phía sau (sân nhà) + nhà hàng xóm + cây
+  const houseWall = M(0xc9b79c), roof = M(0x7a3b2e), winMat = new THREE.MeshBasicMaterial({ color: 0xffd98a });
+  const house = (x, z, w, h, d) => {
+    put(world, new THREE.BoxGeometry(w, h, d), houseWall, x, h / 2, z);
+    put(world, new THREE.ConeGeometry(Math.max(w, d) * 0.72, 2, 4).rotateY(Math.PI / 4), roof, x, h + 1, z);
+    for (let k = -1; k <= 1; k += 2) put(world, new THREE.PlaneGeometry(1.1, 1.4), winMat, x + k * w * 0.25, h * 0.55, z + d / 2 + 0.02, false, false);
+  };
+  house(0, -30, 18, 7, 8); house(-21, -26, 9, 5.5, 7); house(21, -27, 8, 6, 7);
+  house(-30, 5, 7, 5, 9); house(31, 0, 7, 5.5, 9);
+  const trunk = makeInst(new THREE.CylinderGeometry(0.15, 0.2, 1.4, 6), M(0x4a3222), 12), crown = makeInst(new THREE.ConeGeometry(1.1, 3, 7), M(0x1e5a34), 12);
+  const treeSpots = [[-18, -22], [18, -22], [-18, 8], [-18, -8], [18, 8], [18, -8], [-17.5, 22], [17.5, 22], [-24, 14], [24, 14], [-24, -12], [24, -12]];
+  treeSpots.forEach(([x, z], k) => { setInst(trunk, k, x, 0.7, z); setInst(crown, k, x, 2.7, z, 0, 1, 1 + (k % 3) * 0.15, 1); });
+  [trunk, crown].forEach((m) => { finishInst(m); world.add(m); });
+
+  // Sao
+  const pos = new Float32Array(300 * 3);
+  for (let k = 0; k < 300; k++) { const a = rand() * Math.PI * 2, e = 0.15 + rand() * 1.2, r = 150; pos.set([Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r, Math.sin(a) * Math.cos(e) * r], k * 3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false })));
+}
+
+function buildWorld() {
+  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildActivitySpots();
+  world.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); });       // vật tĩnh: khỏi tính lại ma trận mỗi khung
+}
+
+/* =====================================================================
+   6. NPC (InstancedMesh) — giai đoạn 1: đứng/ngồi yên, vẫn lưu bản ghi để giai đoạn 3 làm sống động
+   ===================================================================== */
+const npcs = [];
+function planNPCs() {
+  const kinds = [['adult', 0.7], ['elder', 0.15], ['kid', 0.15]];
+  const kindOf = () => { let r = rand(); for (const [k, p] of kinds) { if ((r -= p) < 0) return k; } return 'adult'; };
+  const make = (x, z, rot, seated, kind = kindOf()) => ({
+    x, z, rot, seated, kind,
+    scale: kind === 'kid' ? 0.62 : kind === 'elder' ? 0.93 : 0.97 + rand() * 0.08,
+    skin: pick(SKINS), hair: kind === 'elder' ? 0xe6e6e6 : pick(HAIRS), shirt: pick(SHIRTS), pants: pick(PANTS),
+  });
+  for (const s of seats) if (rand() < 0.74) npcs.push(make(s.x, s.z, s.rot, true));
+  // NPC đứng: nhóm chụp ảnh cạnh sân khấu, khách mới ở cổng, trẻ con ở lối giữa hai dãy bàn
+  const groups = [
+    [-9.6, -7.2, -12.6, -10.4, 3, 0.3], [7.2, 9.6, -12.6, -10.4, 3, -0.3],
+    [-5, -3, 14.4, 16.4, 2, 0], [3, 5, 14.4, 16.4, 2, 0],
+    [-8.4, -7.6, -9, 9, 2, null], [7.6, 8.4, -9, 9, 2, null],
+  ];
+  for (const [x0, x1, z0, z1, n, rot] of groups) for (let k = 0; k < n; k++) for (let t = 0; t < 40; t++) {
+    const x = lerp(x0, x1, rand()), z = lerp(z0, z1, rand());
+    if (!isFree(x, z, 0.55)) continue;
+    const kind = (rot === null && k === 0) ? 'kid' : kindOf();
+    npcs.push(make(x, z, rot === null ? rand() * Math.PI * 2 : rot + (rand() - 0.5) * 0.4, false, kind));
+    addCircle(x, z, 0.32); break;
+  }
+}
+
+/* Đặt (hoặc đặt lại) toàn bộ bộ phận của NPC thứ i. hop = nhảy lên (m), clap 0..1 = tay chắp lại vỗ.
+   Màu chỉ ghi ở lần đầu (first). Ghi lại ma trận từng khung chỉ khi crowd đang hoạt động. */
+const NP = {}, npBase = new THREE.Object3D(), NP_INK = 0x1a1a22;
+function npPart(inst, idx, lx, ly, lz, color, first, o = {}) {
+  _l.position.set(lx, ly, lz); _l.rotation.set(o.rx || 0, 0, o.rz || 0); _l.scale.set(o.sx || 1, o.sy || 1, o.sz || 1); _l.updateMatrix();
+  _m.multiplyMatrices(npBase.matrix, _l.matrix); inst.setMatrixAt(idx, _m); if (first) inst.setColorAt(idx, _c.set(color));
+}
+function placeNpc(i, hop, clap, first) {
+  const n = npcs[i], hs = n.kind === 'kid' ? 1.22 : 1;                    // đầu trẻ con to hơn cho đáng yêu
+  npBase.position.set(n.x, 0, n.z); npBase.rotation.set(0, n.rot, 0); npBase.scale.setScalar(n.scale); npBase.updateMatrix();
+  npPart(NP.torso, i, 0, 0.775 + hop, 0, n.shirt, first);
+  npPart(NP.head, i, 0, 1.35 + hop, 0, n.skin, first, { sx: hs, sy: hs, sz: hs });
+  npPart(NP.hair, i, 0, 1.36 * (n.kind === 'kid' ? 1.015 : 1) + hop, 0, n.hair, first, { rx: -0.3, sx: hs, sy: hs, sz: hs });
+  npPart(NP.eyes, i * 2, -0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first); npPart(NP.eyes, i * 2 + 1, 0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first);
+  for (const s of [-1, 1]) {                                              // tay: buông thõng → chắp trước ngực khi vỗ
+    npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 - 0.19 * clap), 0.78 + hop + 0.2 * clap, 0.22 * clap, n.shirt, first, { rx: -1.25 * clap, rz: -s * 0.12 * (1 - clap) });
+  }
+  if (n.seated) npPart(NP.thighs, n.li, 0, 0.52, 0.22, n.pants, first); else npPart(NP.pants, n.li, 0, 0.25, 0, n.pants, first);
+}
+
+function buildNPCs() {
+  const N = npcs.length, standing = npcs.filter((n) => !n.seated).length, seated = N - standing;
+  const mk = (geo, n, cast = true) => { const m = makeInst(geo, M(0xffffff), n, cast, true); world.add(m); return m; };
+  const torso = mk(new THREE.CylinderGeometry(0.2, 0.26, 0.55, 8), N);
+  const head = mk(new THREE.SphereGeometry(0.3, 12, 9), N);
+  const hair = mk(new THREE.SphereGeometry(0.325, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.58), N);
+  const eyes = mk(new THREE.SphereGeometry(0.04, 6, 5), N * 2, false);
+  const arms = mk(new THREE.CapsuleGeometry(0.065, 0.28, 3, 6), N * 2);
+  const pants = mk(new THREE.CylinderGeometry(0.18, 0.2, 0.5, 8), standing);
+  const thighs = mk(new THREE.BoxGeometry(0.36, 0.16, 0.46), seated);
+  Object.assign(NP, { torso, head, hair, eyes, arms, pants, thighs });
+  let pi = 0, ti = 0;
+  npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; placeNpc(i, 0, 0, true); });
+  Object.values(NP).forEach(finishInst);
+  document.getElementById('count').textContent = N + 1;     // +1 là người chơi
+}
+
+/* =====================================================================
+   7. NHÂN VẬT NGƯỜI CHƠI (chibi nhìn từ sau lưng)
+   ===================================================================== */
+const player = { x: 0, z: 21, rot: Math.PI, phase: 0, speed01: 0, group: null, rig: null, tag: null };
+function buildPlayer(o, name) {
+  if (player.group) { scene.remove(player.group); player.group.traverse((c) => { if (c.geometry) c.geometry.dispose(); }); }
+  if (player.tag) { player.tag.material.map.dispose(); player.tag.material.dispose(); }
+  const c = buildCharacter(o, name);
+  c.g.position.set(player.x, 0, player.z); c.g.rotation.y = player.rot; scene.add(c.g);
+  player.group = c.g; player.rig = c.rig; player.tag = c.tag;
+}
+// Tư thế đi bộ; hold = giơ hai tay ra trước (bưng mâm)
+function poseWalker(r, phase, s, hold) {
+  const sw = Math.sin(phase) * 0.75 * s;
+  r.legL.rotation.x = sw; r.legR.rotation.x = -sw;
+  if (hold) { r.armL.rotation.x = r.armR.rotation.x = -1.45; } else { r.armL.rotation.x = -sw * 0.8; r.armR.rotation.x = sw * 0.8; }
+  r.body.position.y = Math.abs(Math.sin(phase)) * 0.07 * s;
+}
+// Dựng một nhân vật chibi (dùng cho người chơi và cô dâu chú rể)
+function buildCharacter(o, name) {
+  const g = new THREE.Group(), skin = M(0xffd7b5), hairMat = M(o.hair), topMat = M(o.top), botMat = M(o.bottom), armMat = M(o.arm);
+  const body = new THREE.Group(); g.add(body);
+
+  const legGeo = new THREE.CapsuleGeometry(0.09, 0.28, 3, 6), armGeo = new THREE.CapsuleGeometry(0.07, 0.26, 3, 6);
+  const legMat = o.kind === 'dress' ? skin : botMat, mkLimb = (geo, mat, x, y, cy) => {
+    const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p); put(p, geo, mat, 0, cy, 0); return p;
+  };
+  const legL = mkLimb(legGeo, legMat, -0.13, 0.5, -0.25), legR = mkLimb(legGeo, legMat, 0.13, 0.5, -0.25);
+  const armL = mkLimb(armGeo, armMat, -0.31, 0.97, -0.18), armR = mkLimb(armGeo, armMat, 0.31, 0.97, -0.18);
+
+  if (o.kind === 'aodai') {
+    put(body, new THREE.CylinderGeometry(0.2, 0.3, 0.75, 10), topMat, 0, 0.66, 0);
+    put(body, new THREE.CylinderGeometry(0.15, 0.17, 0.06, 10), M(0xffd166), 0, 1.03, 0);
+  } else if (o.kind === 'dress') {
+    put(body, new THREE.CylinderGeometry(0.17, 0.42, 0.7, 12), topMat, 0, 0.62, 0);
+    put(body, new THREE.BoxGeometry(0.26, 0.1, 0.12), M(0xffffff), 0, 0.82, -0.2);            // nơ sau lưng
+  } else if (o.kind === 'suit') {
+    put(body, new THREE.BoxGeometry(0.5, 0.52, 0.3), topMat, 0, 0.75, 0);
+    put(body, new THREE.BoxGeometry(0.2, 0.32, 0.02), M(0xffffff), 0, 0.8, 0.155);
+    put(body, new THREE.BoxGeometry(0.05, 0.22, 0.02), M(0xd7263d), 0, 0.78, 0.17);
+  } else {
+    put(body, new THREE.BoxGeometry(0.48, 0.5, 0.3), topMat, 0, 0.75, 0);
+  }
+  // Đầu to (chibi): mặt về +z, tóc trùm sau/đỉnh đầu, búi tóc cho một số bộ
+  put(body, new THREE.SphereGeometry(0.38, 16, 12), skin, 0, 1.13, 0);
+  const hair = put(body, new THREE.SphereGeometry(0.405, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.6), hairMat, 0, 1.14, 0); hair.rotation.x = -0.3;
+  put(body, new THREE.SphereGeometry(0.34, 12, 8), hairMat, 0, 1.1, -0.12);                       // tóc phía sau gáy
+  if (o.bun) put(body, new THREE.SphereGeometry(0.15, 10, 8), hairMat, 0, 1.55, -0.12);
+  for (const sx of [-1, 1]) {
+    put(body, new THREE.SphereGeometry(0.045, 8, 6), M(0x1a1a22), sx * 0.13, 1.1, 0.34, false, false);   // mắt
+    put(body, new THREE.SphereGeometry(0.05, 8, 6), M(0xff9aa8), sx * 0.22, 1.02, 0.3, false, false).scale.z = 0.4; // má hồng
+  }
+
+  // Bảng tên trên đầu
+  const tex = canvasTex(512, 96, (c, w, h) => {
+    c.font = `bold 44px ${FONT}`; const tw = Math.min(w - 10, c.measureText(name).width + 44);
+    c.fillStyle = 'rgba(11,16,48,.72)'; c.beginPath(); c.roundRect((w - tw) / 2, 12, tw, h - 24, 24); c.fill();
+    c.fillStyle = '#ffe28a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name, w / 2, h / 2 + 2, w - 60);
+  });
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false })); tag.scale.set(2.1, 0.39, 1); tag.position.set(0, 2.05, 0);
+  g.add(tag);
+
+  return { g, rig: { body, legL, legR, armL, armR }, tag };
+}
+
+/* =====================================================================
+   8. ĐIỀU KHIỂN: cần ảo (trái), WASD/mũi tên, kéo để xoay camera
+   ===================================================================== */
+const input = { jx: 0, jy: 0, x: 0, y: 0 };
+const keys = new Set();
+const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+addEventListener('keydown', (e) => {
+  if (!G.started || e.target instanceof HTMLInputElement || !MOVE_KEYS.includes(e.code)) return;
+  keys.add(e.code); e.preventDefault();
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+function readInput() {
+  let x = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + input.jx;
+  let y = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + input.jy;
+  const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+  input.x = x; input.y = y;
+}
+
+const joy = document.getElementById('joy'), knob = document.getElementById('knob'), JR = 48;
+let joyId = null;
+function moveJoy(e) {
+  const r = joy.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const d = Math.hypot(dx, dy), k = d > JR ? JR / d : 1; dx *= k; dy *= k;
+  knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  const m = Math.hypot(dx, dy) / JR;
+  if (m < 0.12) { input.jx = input.jy = 0; } else { input.jx = dx / JR; input.jy = -dy / JR; }
+}
+function endJoy(e) {
+  if (e.pointerId !== joyId) return;
+  joyId = null; input.jx = input.jy = 0; knob.style.transform = 'translate(-50%,-50%)';
+}
+joy.addEventListener('pointerdown', (e) => { if (joyId !== null) return; joyId = e.pointerId; joy.setPointerCapture(e.pointerId); moveJoy(e); e.preventDefault(); });
+joy.addEventListener('pointermove', (e) => { if (e.pointerId === joyId) moveJoy(e); });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => joy.addEventListener(t, endJoy));
+
+const cam = { yaw: 0, pitch: CFG.camPitchDefault, dist: CFG.camDist, lookY: CFG.camHeight, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+let dragId = null, lastX = 0, lastY = 0;
+const stick = { u: 0, x0: 0 };                       // kéo ngang = "cần ảo" khi đang chơi hoạt động cần thăng bằng
+canvas.addEventListener('pointerdown', (e) => {
+  if (!G.started || dragId !== null) return;
+  dragId = e.pointerId; lastX = e.clientX; lastY = e.clientY; stick.x0 = e.clientX; canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== dragId) return;
+  if (G.act) { stick.u = clamp((e.clientX - stick.x0) / 45, -1, 1); return; }
+  cam.yaw -= (e.clientX - lastX) * 0.0055; cam.pitch = clamp(cam.pitch + (e.clientY - lastY) * 0.004, CFG.camPitchMin, CFG.camPitchMax);
+  lastX = e.clientX; lastY = e.clientY;
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => canvas.addEventListener(t, (e) => { if (e.pointerId === dragId) { dragId = null; stick.u = 0; } }));
+
+/* =====================================================================
+   9. CẬP NHẬT: người chơi, camera, đèn nhấp nháy
+   ===================================================================== */
+const _desired = new THREE.Vector3(), _target = new THREE.Vector3();
+function updatePlayer(dt) {
+  readInput();
+  const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
+  const mx = -sy * input.y + cy * input.x, mz = -cy * input.y - sy * input.x;     // trục tiến/phải theo hướng camera
+  const mag = Math.min(1, Math.hypot(input.x, input.y));
+  if (mag > 0.01) {
+    player.x += mx * CFG.walkSpeed * dt; player.z += mz * CFG.walkSpeed * dt;
+    const want = Math.atan2(mx, mz); let d = want - player.rot; d = Math.atan2(Math.sin(d), Math.cos(d));
+    player.rot += d * (1 - Math.exp(-14 * dt));
+  }
+  const before = { x: player.x, z: player.z }; resolveCollisions(player, CFG.playerRadius);
+  const moved = Math.hypot(player.x - before.x, player.z - before.z);               // bị đẩy ra thì vẫn tính đang đi
+  player.speed01 = lerp(player.speed01, mag > 0.01 ? mag : 0, 1 - Math.exp(-12 * dt));
+  player.phase += dt * 11 * player.speed01;
+  poseWalker(player.rig, player.phase, player.speed01, false);
+  player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;
+  return moved;
+}
+function updateCamera(dt, orbitT) {
+  if (!G.started) {                                  // màn chào: máy quay vòng quanh rạp
+    const a = orbitT * 0.12;
+    _desired.set(Math.sin(a) * 26, 9 + Math.sin(orbitT * 0.2), 8 + Math.cos(a) * 20); _target.set(0, 1.5, -4);
+    camera.position.lerp(_desired, 1 - Math.exp(-2 * dt)); cam.look.lerp(_target, 1 - Math.exp(-4 * dt)); camera.lookAt(cam.look); return;
+  }
+  const cp = Math.cos(cam.pitch);
+  _target.set(player.x, cam.lookY, player.z);
+  _desired.set(player.x + Math.sin(cam.yaw) * cp * cam.dist, CFG.camHeight + Math.sin(cam.pitch) * cam.dist, player.z + Math.cos(cam.yaw) * cp * cam.dist);
+  _desired.y = Math.max(_desired.y, 0.6);
+  camera.position.lerp(_desired, 1 - Math.exp(-12 * dt)); cam.look.lerp(_target, 1 - Math.exp(-16 * dt)); camera.lookAt(cam.look);
+}
+function updateBulbs(t) {
+  for (let i = 0; i < 3; i++) blinkMats[i].color.setScalar(0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2.6 + i * 2.1)));
+}
+
+/* =====================================================================
+   10. VÒNG LẶP & KÍCH THƯỚC
+   ===================================================================== */
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  camera.aspect = w / h; camera.fov = camera.aspect < 1 ? 68 : 52; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+const fpsEl = document.getElementById('fps'); const showFps = location.hash === '#debug';
+let last = performance.now(), acc = 0, frames = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (G.started) {
+    if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
+    updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
+  }
+  updateCamera(dt, now / 1000); updateBulbs(now / 1000);
+  renderer.render(scene, camera);
+  if (showFps) { acc += dt; frames++; if (acc >= 0.5) { fpsEl.textContent = Math.round(frames / acc) + ' fps · ' + renderer.info.render.calls + ' calls'; acc = 0; frames = 0; } }
+}
+
+/* =====================================================================
+   12. KHUNG HOẠT ĐỘNG + ĐIỂM VUI + HOẠT ĐỘNG 1: BƯNG TRÁP
+   Mỗi hoạt động là một object { enter(), update(dt), exit() }. G.act != null thì vòng lặp
+   giao quyền cho hoạt động và tạm dừng đi lại tự do.
+   ===================================================================== */
+const PARTY_MAX = 400;                               // tổng điểm Vui để đầy thanh "Không khí tiệc"
+const party = {
+  value: 0,
+  add(n) { this.value = Math.min(PARTY_MAX, this.value + n); $('partyFill').style.width = (this.value / PARTY_MAX * 100) + '%'; },
+};
+
+const spots = [], markers = [];                      // điểm kích hoạt hoạt động + vòng sáng chỉ đường
+let nearSpot = null;
+function addSpot(s) {
+  spots.push(s);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.25, 40).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.6, depthWrite: false }));
+  ring.position.set(s.x, 0.04, s.z);
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.45, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0xffd166 }));
+  arrow.position.set(s.x, 2.1, s.z);
+  scene.add(ring, arrow); markers.push({ ring, arrow });
+}
+function updateMarkers(t) {
+  const show = !G.act;
+  for (const m of markers) {
+    m.ring.visible = m.arrow.visible = show;
+    m.ring.material.opacity = 0.45 + 0.25 * Math.sin(t * 3);
+    m.arrow.position.y = 2.1 + Math.sin(t * 3) * 0.12; m.arrow.rotation.y = t * 1.5;
+  }
+}
+function updateSpots() {
+  let best = null, bd = 1e9;
+  for (const s of spots) { const d = Math.hypot(player.x - s.x, player.z - s.z); if (d < s.r && d < bd) { best = s; bd = d; } }
+  if (best === nearSpot) return;
+  nearSpot = best; const b = $('actBtn'); b.style.display = best ? 'block' : 'none'; if (best) b.textContent = best.label;
+}
+function enterAct(a) {
+  G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; joy.style.display = 'none';
+  input.jx = input.jy = 0; stick.u = 0; keys.clear(); a.enter();
+}
+function exitAct() {
+  const a = G.act; a.exit(); G.act = null; cam.dist = CFG.camDist; cam.pitch = CFG.camPitchDefault; cam.lookY = CFG.camHeight; cam.yaw = 0;
+  player.group.position.y = 0;
+  if (isTouch) joy.style.display = 'block';
+}
+$('actBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (nearSpot && !G.act) enterAct(nearSpot.act); });
+addEventListener('keydown', (e) => {
+  if (!G.started || G.act || !nearSpot || e.target instanceof HTMLInputElement) return;
+  if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enterAct(nearSpot.act); }
+});
+function showResult({ title, score, msg, again, done }) {
+  $('resTitle').textContent = title; $('resScore').textContent = '+' + score + ' Vui'; $('resMsg').textContent = msg;
+  $('resAgain').onclick = () => { $('result').style.display = 'none'; again(); };
+  $('resDone').onclick = () => { $('result').style.display = 'none'; done(); };
+  $('result').style.display = 'flex';
+}
+
+/* ---- Mâm quả: dùng cho bàn trang trí và cho hoạt động ---- */
+function makeTray() {
+  const group = new THREE.Group(), items = [];
+  put(group, new THREE.CylinderGeometry(0.62, 0.55, 0.07, 22), M(0xb3122f), 0, 0, 0);
+  put(group, new THREE.TorusGeometry(0.62, 0.025, 6, 26).rotateX(Math.PI / 2), M(0xffd166), 0, 0.035, 0, false, false);
+  put(group, new THREE.CylinderGeometry(0.55, 0.55, 0.02, 22), M(0xe63946), 0, 0.045, 0, false, false);
+  const keep = (o, x, y, z, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; o.userData.base = { x, y, z, ry }; group.add(o); items.push(o); };
+  const gift = (x, y, z, s, ry) => {                 // hộp quả đỏ thắt dây vàng
+    const g = new THREE.Group();
+    put(g, new THREE.BoxGeometry(0.26, 0.17, 0.26), M(0xd7263d), 0, 0, 0);
+    put(g, new THREE.BoxGeometry(0.275, 0.175, 0.05), M(0xffd166), 0, 0, 0, false, false);
+    put(g, new THREE.BoxGeometry(0.05, 0.175, 0.275), M(0xffd166), 0, 0, 0, false, false);
+    g.scale.setScalar(s); keep(g, x, y, z, ry);
+  };
+  const fruit = (x, z, col) => keep(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), M(col)), x, 0.12, z);
+  gift(-0.2, 0.14, 0.12, 1, 0.3); gift(0.2, 0.14, 0.14, 1, -0.2); gift(0, 0.3, 0.1, 0.85, 0.1);
+  fruit(0.3, -0.25, 0xff8c1a); fruit(-0.3, -0.25, 0xff8c1a); fruit(0, -0.34, 0xff5c8a);
+  items.forEach((o) => o.traverse((c) => { c.castShadow = true; }));
+  return { group, items };
+}
+
+/* ---- Cô dâu chú rể trên sân khấu (đích đến của mâm quả) ---- */
+function buildCouple() {
+  const defs = [
+    [{ kind: 'suit', top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false }, 'Chú rể', -0.85, 0.15],
+    [{ kind: 'dress', top: 0xffffff, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: true }, 'Cô dâu', 0.85, -0.15],
+  ];
+  for (const [o, name, x, ry] of defs) {
+    const c = buildCharacter(o, name);
+    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 1.95; scene.add(c.g); couple.push(c.g);
+  }
+}
+const couple = [];                                   // nhóm 3D của cô dâu chú rể (ẩn khi camera karaoke ở sau lưng ca sĩ)
+
+/* ---- Bàn mâm quả cạnh cổng = điểm bắt đầu hoạt động 1 ---- */
+function buildActivitySpots() {
+  const x = -2.6, z = 16.6;
+  put(world, new THREE.CylinderGeometry(0.55, 0.62, 0.85, 14), M(0xfff4e0), x, 0.425, z); addCircle(x, z, 0.75);
+  const t = makeTray(); t.group.position.set(x, 0.92, z); world.add(t.group);
+  addSpot({ x, z, r: 3.0, label: 'Bưng tráp', act: trayAct });
+  addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
+}
+
+/* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
+const tilt = { gamma: null, g0: 0, listening: false };
+function enableTilt() {
+  if (tilt.listening) return;
+  const on = () => { addEventListener('deviceorientation', (e) => { tilt.gamma = e.gamma; }); tilt.listening = true; };
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then((r) => { if (r === 'granted') on(); }).catch(() => {});   // iOS cần cử chỉ chạm
+    } else if ('DeviceOrientationEvent' in window) on();
+  } catch { /* không có cảm biến: dùng kéo/phím */ }
+}
+function balanceInput() {                            // gộp phím A/D, kéo ngang và nghiêng máy → [-1, 1]
+  let u = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + stick.u;
+  if (tilt.gamma !== null) {
+    const ang = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+    const s = ang === 0 ? 1 : ang === 180 ? -1 : 0;
+    u += s * clamp((tilt.gamma - tilt.g0) / 20, -1, 1);
+  }
+  return clamp(u, -1, 1);
+}
+
+/* ---- Hoạt động 1: Bưng tráp ----
+   Mâm nghiêng theo con lắc ngược: th'' = inst*th - damp*th' + nhiễu + gain*u.
+   Người chơi tự động đi dọc thảm, chỉ lo giữ thăng bằng. Rơi → làm lại từ cổng, mỗi lần rơi nhiễu giảm 10% (tối đa 30%). */
+const TRAY = { speed: 2.8, z0: 17.0, z1: -13.3, fail: 0.8, inst: 0.7, damp: 2.0, gain: 7 };
+const trayAct = {
+  tray: null, droppers: [], vel: [], spin: [],
+  state: 'idle', th: 0, om: 0, t: 0, timer: 0, fails: 0, sumAbs: 0, nAbs: 0, bumpIdx: 0, ph1: 0, ph2: 0, phase: 0, danger: false,
+  bumps: [0.28, 0.55, 0.8],
+
+  enter() {
+    if (!this.tray) {
+      this.tray = makeTray(); this.droppers = [this.tray.group, ...this.tray.items];
+      this.vel = this.droppers.map(() => new THREE.Vector3()); this.spin = this.droppers.map(() => new THREE.Vector3());
+    }
+    this.tray.group.visible = true; this.fails = 0; enableTilt(); player.tag.visible = false;   // bảng tên che mâm
+    $('bal').style.display = 'block';
+    $('balHint').textContent = isTouch ? 'Nghiêng điện thoại hoặc kéo ngón tay trái/phải' : 'Giữ chuột kéo trái/phải, hoặc phím A / D';
+    this.reset();
+  },
+  exit() {
+    player.group.remove(this.tray.group); this.tray.group.visible = false; player.rig.body.rotation.z = 0; player.tag.visible = true; $('bal').style.display = 'none';
+  },
+  reset() {
+    const { group, items } = this.tray;
+    player.group.add(group); group.position.set(0, 1.05, 1.25); group.rotation.set(0, 0, 0); group.scale.setScalar(1.2);   // đưa ra xa + phóng to để không bị đầu che
+    for (const it of items) { const b = it.userData.base; group.add(it); it.position.set(b.x, b.y, b.z); it.rotation.set(0, b.ry, 0); }
+    this.th = this.om = this.t = this.sumAbs = this.nAbs = this.bumpIdx = 0;
+    this.ph1 = Math.random() * 6.28; this.ph2 = Math.random() * 6.28;
+    player.x = 0; player.z = TRAY.z0; player.rot = Math.PI;
+    player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;
+    cam.yaw = 0; cam.pitch = 0.58; cam.dist = 6.2;
+    this.state = 'ready'; this.timer = 1.2; this.setMeter(0, 0);
+    showHint('Sẵn sàng… giữ thăng bằng nhé!', 1200);
+  },
+  setMeter(th, prog) {
+    $('balMark').style.left = (50 + clamp(th / TRAY.fail, -1, 1) * 50) + '%'; $('progFill').style.width = (prog * 100) + '%';
+    const d = Math.abs(th) > TRAY.fail * 0.7;
+    if (d !== this.danger) { this.danger = d; $('bal').classList.toggle('danger', d); }
+  },
+  applyTilt() { this.tray.group.rotation.z = -this.th; player.rig.body.rotation.z = -this.th * 0.2; },
+
+  update(dt) {
+    if (this.state === 'ready') {
+      this.timer -= dt; poseWalker(player.rig, 0, 0, true); this.applyTilt();
+      if (this.timer <= 0) { this.state = 'run'; tilt.g0 = tilt.gamma ?? 0; showHint('Đi nào!', 900); }
+    } else if (this.state === 'run') {
+      this.runStep(dt);
+    } else if (this.state === 'fallen') {
+      this.timer -= dt; this.fallStep(dt); poseWalker(player.rig, 0, 0, false);
+      if (this.timer <= 0) this.reset();
+    } else if (this.state === 'done') {
+      poseWalker(player.rig, 0, 0, true);
+    }
+  },
+  runStep(dt) {
+    const prog = clamp((TRAY.z0 - player.z) / (TRAY.z0 - TRAY.z1), 0, 1), assist = 1 - Math.min(this.fails, 3) * 0.1;
+    this.t += dt;
+    const amp = lerp(0.3, 0.65, prog) * assist;
+    const w = amp * (0.9 * Math.sin(1.3 * this.t + this.ph1) + 0.6 * Math.sin(2.9 * this.t + this.ph2));   // nhiễu liên tục, tăng dần
+    if (this.bumpIdx < this.bumps.length && prog >= this.bumps[this.bumpIdx]) { this.om += (Math.random() < 0.5 ? -1 : 1) * 0.5 * assist; this.bumpIdx++; }   // "ổ gà"
+    this.om += (TRAY.inst * this.th - TRAY.damp * this.om + w + TRAY.gain * balanceInput()) * dt;
+    this.th += this.om * dt;
+    player.z -= TRAY.speed * dt; this.phase += dt * 9; this.sumAbs += Math.abs(this.th); this.nAbs++;
+    poseWalker(player.rig, this.phase, 1, true); player.group.position.z = player.z; this.applyTilt(); this.setMeter(this.th, prog);
+    if (Math.abs(this.th) >= TRAY.fail) this.drop(); else if (player.z <= TRAY.z1) this.finish();
+  },
+  drop() {
+    this.state = 'fallen'; this.timer = 1.5; this.fails++; this.setMeter(this.th, 0);
+    const sign = Math.sign(this.th) || 1, { group, items } = this.tray;
+    items.forEach((it) => scene.attach(it)); scene.attach(group);                 // giữ vị trí thế giới rồi cho rơi tự do
+    this.droppers.forEach((o, i) => {
+      const isTray = o === group;
+      this.vel[i].set(sign * (isTray ? 0.8 : 1 + Math.random() * 1.5), isTray ? 0.5 : 1 + Math.random() * 1.5, -(0.3 + Math.random() * 1.2));
+      this.spin[i].set(Math.random() * 8 - 4, 0, -sign * (2 + Math.random() * 4));
+    });
+    showHint('Ối, rơi mất rồi! Thử lại nào ♥', 1400);
+  },
+  fallStep(dt) {
+    this.droppers.forEach((o, i) => {
+      const v = this.vel[i], s = this.spin[i], floor = o === this.tray.group ? 0.04 : 0.1;
+      if (o.position.y <= floor && Math.abs(v.y) < 0.3) { v.set(0, 0, 0); return; }   // đã nằm yên
+      v.y -= 9.8 * dt; o.position.addScaledVector(v, dt);
+      if (o.position.y > floor + 0.01) { o.rotation.x += s.x * dt; o.rotation.z += s.z * dt; }
+      if (o.position.y < floor) { o.position.y = floor; v.y = -v.y * 0.35; v.x *= 0.7; v.z *= 0.7; s.multiplyScalar(0.5); }
+    });
+  },
+  finish() {
+    this.state = 'done'; this.th = this.om = 0; this.applyTilt(); $('bal').style.display = 'none';
+    const stab = 1 - clamp(this.sumAbs / this.nAbs / TRAY.fail, 0, 1);
+    const score = clamp(Math.round(35 + 65 * stab) - 5 * this.fails, 20, 100);   // 20–100: hoàn thành luôn được điểm, rơi chỉ trừ nhẹ
+    party.add(score);
+    showResult({
+      title: 'Mâm quả đã tới nơi!', score,
+      msg: score >= 90 ? 'Vững như bàn thạch! Cô dâu chú rể mát lòng mát dạ.' : score >= 70 ? 'Khéo tay lắm, họ hàng khen nức nở!' : 'Qua được rồi, ai cũng thở phào!',
+      again: () => { this.fails = 0; $('bal').style.display = 'block'; this.reset(); },
+      done: () => { exitAct(); showHint('Đứng trước sân khấu để hát karaoke nhé ♪', 6000); },
+    });
+  },
+};
+
+/* =====================================================================
+   13. ÂM THANH TỔNG HỢP (Web Audio) + KHÁN GIẢ VỖ TAY
+   Chỉ khởi tạo sau cú chạm "Vào tiệc". Giai đoạn 3 sẽ thêm nhạc nền, cụng ly, loa kéo...
+   ===================================================================== */
+const audio = {
+  ctx: null, master: null, noiseBuf: null, muted: false,
+  init() {
+    if (this.ctx) { this.resume(); return; }
+    try {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      this.ctx = new C(); this.master = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.6; this.master.connect(this.ctx.destination);
+      const n = this.ctx.sampleRate >> 1, b = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      this.noiseBuf = b;
+    } catch { this.ctx = null; }
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  setMuted(m) { this.muted = m; if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.6, this.ctx.currentTime, 0.02); },
+  tone(freq, dur, type, vol, when = 0) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + when, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(vol, 0.0002), t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.05);
+  },
+  kick(when = 0) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + when, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.25);
+  },
+  noise(dur, vol, hp, when = 0) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + when, s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    s.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
+    g.gain.setValueAtTime(Math.max(vol, 0.0002), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
+  },
+  clap(vol) { this.noise(0.05, vol, 1500); },
+  sustain(freq) {                                   // âm kéo dài khi giữ nốt dài; trả về hàm dừng (null nếu không có âm thanh)
+    if (!this.ctx) return null;
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.04);
+    o.connect(g); g.connect(this.master); o.start(t);
+    return () => {
+      const n = this.ctx.currentTime; g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0002), n);
+      g.gain.exponentialRampToValueAtTime(0.0001, n + 0.12); o.stop(n + 0.15);
+    };
+  },
+};
+$('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
+
+/* Khán giả: level 0..1 = mức nhiệt tình; target do hoạt động đặt. NPC chắp tay vỗ + nhún theo nhịp. */
+const crowd = { level: 0, target: 0, active: false, nextClap: 0 };
+function updateCrowd(dt, t) {
+  crowd.level += (crowd.target - crowd.level) * (1 - Math.exp(-4 * dt));
+  if (crowd.level < 0.02 && crowd.target === 0) {
+    if (crowd.active) { crowd.active = false; for (let i = 0; i < npcs.length; i++) placeNpc(i, 0, 0, false); markNpcDirty(); }   // về tư thế nghỉ
+    return;
+  }
+  crowd.active = true;
+  for (let i = 0; i < npcs.length; i++) {
+    const n = npcs[i], c = crowd.level > 0.05 ? crowd.level * Math.max(0, Math.sin(t * 17 + n.ph)) : 0;
+    placeNpc(i, c * 0.04, c, false);
+  }
+  markNpcDirty();
+  if (crowd.level > 0.15 && t > crowd.nextClap) { audio.clap(0.03 + 0.12 * crowd.level); crowd.nextClap = t + 0.07 + Math.random() * 0.12 / (0.3 + crowd.level); }
+}
+function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'arms']) NP[k].instanceMatrix.needsUpdate = true; }
+
+/* =====================================================================
+   14. HOẠT ĐỘNG 2: KARAOKE (rhythm game ~30 giây, 3 làn)
+   Nốt rơi xuống vạch tròn; chạm đúng lúc: ±0.10s "Cháy quá", ±0.20s "Được", ±0.30s "Lạc nhịp";
+   không chạm → "Lạc nhịp". Không thua cuộc: điểm Vui = 20 + 80 × độ chính xác.
+   ===================================================================== */
+const KARA = { bpm: 96, lead: 1.8, beats: 44, fall: 2.0, perfect: 0.13, good: 0.25, window: 0.38, holdSlack: 0.28 };   // nới cửa sổ chấm, nhịp chậm, nốt rơi chậm cho dễ bấm
+const LANE_COL = ['#ff6b9d', '#ffd166', '#5ad1ff'], LANE_KEY = ['A', 'S', 'D'];
+const KEY_LANE = { KeyA: 0, ArrowLeft: 0, KeyS: 1, ArrowDown: 1, KeyW: 1, ArrowUp: 1, KeyD: 2, ArrowRight: 2 };
+const PENTA = [392, 440, 523.3, 587.3, 659.3, 784];                         // gam ngũ cung: nốt hát khi bắt trúng
+const LYRICS = ['Mừng ngày vui, trăm năm hạnh phúc', 'Ly này cụng nhé, cười thật rộn ràng', 'Cô dâu chú rể, tay trong tay nhau', 'Cả nhà cùng hát, chúc mừng đôi uyên ương'];   // lời tự soạn
+const rh = { g: null, W: 0, H: 0, dpr: 1 };
+
+const karaokeAct = {
+  state: 'idle', t: 0, timer: 0, clock: 0, T0a: 0, useAudio: false, end: 0,
+  notes: [], total: 0, counts: [0, 0, 0], combo: 0, bestCombo: 0, pts: 0, q: 0,
+  hold: [null, null, null], stopSnd: [null, null, null], down: [false, false, false], ptr: new Map(),
+  fx: Array.from({ length: 8 }, () => ({ on: false, lane: 0, age: 0, kind: 0 })), fxI: 0, label: { text: '', color: '#fff', age: 9 },
+
+  enter() {
+    $('rhythm').style.display = 'block'; this.resize(); player.tag.visible = false; couple.forEach((c) => { c.visible = false; });
+    showHint(isTouch ? 'Chạm nốt tròn · nốt dài thì giữ ngón tay đến hết vạch!' : 'Bấm nốt tròn · nốt dài thì giữ chuột/phím đến hết vạch (A · S · D)', 5000);
+    this.reset();
+  },
+  exit() {
+    this.stopAll();
+    $('rhythm').style.display = 'none'; player.tag.visible = true; couple.forEach((c) => { c.visible = true; }); player.rig.body.rotation.z = 0; player.rig.body.position.y = 0;
+    player.x = 0; player.z = -13.2; player.rot = 0; player.group.position.set(0, 0, -13.2); crowd.target = 0;
+  },
+  resize() {
+    const cv = $('rhythm'), r = cv.getBoundingClientRect(); if (!r.width) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+    rh.W = r.width; rh.H = r.height; rh.dpr = dpr; rh.g = cv.getContext('2d');
+  },
+  stopAll() { for (let l = 0; l < 3; l++) { if (this.stopSnd[l]) { this.stopSnd[l](); this.stopSnd[l] = null; } this.hold[l] = null; this.down[l] = false; } this.ptr.clear(); },
+  makeChart() {                                     // bố cục cố định (seed) để lượt nào cũng công bằng. dur > 0 = nốt dài
+    const rng = mulberry32(20261105), beat = 60 / KARA.bpm, out = []; let lane = 1;
+    for (let b = 2; b < KARA.beats; b++) {
+      const r = rng(), move = () => { lane = clamp(lane + Math.floor(rng() * 3) - 1, 0, 2); };
+      if (r < 0.2 && b > 3 && b < KARA.beats - 3) {  // nốt dài 2–3 nhịp, các nhịp bị nó chiếm để trống cho dễ thở
+        const k = rng() < 0.6 ? 2 : 3; move();
+        out.push({ t: KARA.lead + b * beat, dur: (k - 0.5) * beat, lane, st: 0, k: 0 }); b += k - 1;
+      } else if (r < 0.75) {
+        move(); out.push({ t: KARA.lead + b * beat, dur: 0, lane, st: 0, k: 0 });
+        if (b % 2 === 1 && rng() < 0.15) out.push({ t: KARA.lead + (b + 0.5) * beat, dur: 0, lane: (lane + 1 + Math.floor(rng() * 2)) % 3, st: 0, k: 0 });
+      }
+    }
+    return out;                                     // đã sắp theo thời gian của đầu nốt
+  },
+  reset() {
+    this.stopAll(); this.notes = this.makeChart(); this.total = this.notes.length; this.counts = [0, 0, 0]; this.combo = this.bestCombo = this.pts = this.q = 0;
+    this.label.age = 9; this.fx.forEach((f) => { f.on = false; });
+    this.end = KARA.lead + KARA.beats * (60 / KARA.bpm) + 0.8;
+    player.x = 0; player.z = -15.4; player.rot = 0; player.group.position.set(0, 0.8, -15.4); player.group.rotation.y = 0;   // lên sân khấu, quay mặt ra khán giả
+    cam.yaw = Math.PI; cam.pitch = 0.4; cam.dist = 4.4; cam.lookY = 1.2;                                                   // camera sau lưng ca sĩ nhìn ra khán giả
+    crowd.target = 0.1; this.state = 'intro'; this.timer = 3.2; this.t = 0; this.clock = 0;
+  },
+  songTime() { return this.useAudio ? audio.ctx.currentTime - this.T0a : this.clock; },
+  startSong() {
+    this.state = 'play'; this.clock = 0; this.useAudio = !!(audio.ctx && audio.ctx.state === 'running');
+    this.T0a = audio.ctx ? audio.ctx.currentTime + 0.08 : 0;
+    this.scheduleBacking(); showHint('Hát nào!', 800);
+  },
+  scheduleBacking() {                               // nhạc nền hẹn giờ một lần: trống, chũm chọe, hợp âm, bass
+    if (!audio.ctx) return;
+    const beat = 60 / KARA.bpm, base = this.T0a + KARA.lead - audio.ctx.currentTime;
+    const chords = [[261.6, 329.6, 392], [220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7]];
+    for (let b = 0; b < KARA.beats; b++) {
+      const w = base + b * beat; if (w < 0) continue;
+      const ch = chords[Math.floor(b / 4) % 4];
+      audio.kick(w); audio.noise(0.04, 0.05, 7000, w + beat / 2); audio.tone(ch[0] / 2, beat * 0.9, 'sine', 0.16, w);
+      if (b % 4 === 0) ch.forEach((f) => audio.tone(f, beat * 3.6, 'triangle', 0.06, w));
+    }
+  },
+  noteFreq(lane) { return PENTA[(lane * 2 + this.counts[0] + this.counts[1]) % 6]; },
+  addFx(lane, kind) { const f = this.fx[this.fxI++ % this.fx.length]; f.on = true; f.lane = lane; f.age = 0; f.kind = kind; },
+  press(lane) { this.down[lane] = true; this.tap(lane); },
+  lift(lane) { this.down[lane] = false; this.release(lane); },
+  tap(lane) {
+    if (this.state !== 'play') return;
+    const s = this.songTime(); let best = null, bd = KARA.window;
+    for (const n of this.notes) {
+      if (n.t - s > bd) break;
+      if (n.st !== 0 || n.lane !== lane) continue;
+      const d = Math.abs(n.t - s); if (d < bd) { bd = d; best = n; }
+    }
+    if (!best) { this.addFx(lane, 3); return; }      // chạm khơi khơi: chỉ gợn sóng, không phạt
+    const k = bd <= KARA.perfect ? 0 : bd <= KARA.good ? 1 : 2;
+    if (best.dur > 0 && k < 2) {                    // nốt dài: bắt đầu giữ, chấm điểm khi nhả hoặc hết vạch
+      best.st = 3; best.k = k; this.hold[lane] = best; this.addFx(lane, k);
+      this.label = { text: 'Giữ nào!', color: '#ffd166', age: 0 };
+      this.stopSnd[lane] = audio.sustain(this.noteFreq(lane));
+      return;
+    }
+    best.st = 1; this.judge(k, lane);
+  },
+  release(lane) {                                   // nhả tay: giữ đủ lâu → giữ nguyên hạng đầu nốt, nhả sớm → hạ hạng
+    const n = this.hold[lane]; if (!n) return;
+    const s = this.songTime(); this.finishHold(n, s >= n.t + n.dur - KARA.holdSlack ? n.k : (s - n.t) / n.dur >= 0.5 ? Math.max(n.k, 1) : 2);
+  },
+  finishHold(n, k) {
+    const l = n.lane; this.hold[l] = null; if (this.stopSnd[l]) { this.stopSnd[l](); this.stopSnd[l] = null; }
+    n.st = 1; this.judge(k, l, true);
+  },
+  judge(k, lane, quiet) {                           // k: 0 Cháy quá, 1 Được, 2 Lạc nhịp
+    this.counts[k]++; this.pts += [3, 2, 0][k];
+    if (k === 2) this.combo = 0; else { this.combo++; this.bestCombo = Math.max(this.bestCombo, this.combo); }
+    this.q += ([1, 0.6, 0][k] - this.q) * 0.3; crowd.target = 0.1 + 0.9 * this.q;
+    this.label = { text: ['Cháy quá!', 'Được', 'Lạc nhịp'][k], color: ['#ffd166', '#7bed9f', '#ff7675'][k], age: 0 };
+    this.addFx(lane, k);
+    if (quiet) return;
+    if (k < 2) audio.tone(this.noteFreq(lane), 0.35, 'triangle', 0.22); else audio.tone(140, 0.2, 'sawtooth', 0.08);
+  },
+  update(dt) {
+    this.t += dt; this.label.age += dt;
+    for (const f of this.fx) if (f.on) { f.age += dt; if (f.age > 0.4) f.on = false; }
+    if (this.state === 'intro') { this.timer -= dt; if (this.timer <= 0) this.startSong(); }
+    else if (this.state === 'play') {
+      this.clock += dt; const s = this.songTime();
+      for (const n of this.notes) {
+        if (n.t > s) break;
+        if (n.st === 0 && s > n.t + KARA.window) { n.st = 2; this.judge(2, n.lane); }          // đầu nốt trôi qua không chạm
+        else if (n.st === 3 && s >= n.t + n.dur) this.finishHold(n, n.k);                      // giữ đến hết vạch
+      }
+      if (s >= this.end) {
+        this.stopAll(); this.state = 'outro'; this.timer = 1.2; crowd.target = 0.5 + 0.5 * (this.pts / (3 * this.total));
+      }
+    } else if (this.state === 'outro') {
+      this.timer -= dt; if (this.timer <= 0) { this.state = 'done'; this.showScore(); }
+    }
+    this.poseSinger(); this.draw(this.state === 'play' ? this.songTime() : this.state === 'intro' ? 0 : this.end);
+  },
+  poseSinger() {
+    const r = player.rig, ph = this.t * Math.PI * KARA.bpm / 60;
+    poseWalker(r, 0, 0, false);
+    r.armR.rotation.x = -2.5; r.armL.rotation.x = -0.3 - Math.max(0, Math.sin(ph)) * 0.9;   // tay phải cầm mic, tay trái đưa theo nhịp
+    r.body.rotation.z = Math.sin(ph * 0.5) * 0.07; r.body.position.y = Math.abs(Math.sin(ph)) * 0.05;
+    player.group.position.set(0, 0.8, -15.4);
+  },
+  showScore() {
+    const ratio = this.pts / (3 * this.total), score = clamp(Math.round(20 + 80 * ratio), 20, 100), [p, g, m] = this.counts;
+    party.add(score); $('rhythm').style.display = 'none';
+    showResult({
+      title: ratio >= 0.85 ? 'Giọng ca của tiệc!' : 'Bài hát kết thúc!', score,
+      msg: `Cháy quá ${p} · Được ${g} · Lạc nhịp ${m} · Combo cao nhất ${this.bestCombo}. ` +
+        (ratio >= 0.85 ? 'Cả rạp đòi hát thêm bài nữa!' : ratio >= 0.55 ? 'Bà con vỗ tay rần rần!' : 'Hơi lạc nhịp nhưng vui là chính!'),
+      again: () => { $('rhythm').style.display = 'block'; this.resize(); this.reset(); },
+      done: () => exitAct(),
+    });
+  },
+  draw(s) {
+    const g = rh.g; if (!g) return;
+    const W = rh.W, H = rh.H, lw = W / 3, hitY = H * 0.8, topY = H * 0.14, R = Math.min(lw * 0.36, 46), span = hitY - topY;
+    g.setTransform(rh.dpr, 0, 0, rh.dpr, 0, 0); g.clearRect(0, 0, W, H);
+    g.save(); g.beginPath(); g.roundRect(0, 0, W, H, 18); g.clip();
+    g.fillStyle = 'rgba(11,16,48,.55)'; g.fillRect(0, 0, W, H);
+    for (let l = 0; l < 3; l++) {
+      g.fillStyle = this.down[l] ? 'rgba(255,255,255,.22)' : l % 2 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.09)'; g.fillRect(l * lw, 0, lw, H);
+    }
+    const prog = clamp(s / this.end, 0, 1), li = Math.min(LYRICS.length - 1, Math.floor(prog * LYRICS.length));
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, 0, W, 5); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * prog, 5);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = `700 15px ${FONT}`;
+    g.fillText(this.state === 'play' ? LYRICS[li] : '♪ Karaoke ♪', W / 2, 26, W - 20);
+    for (let l = 0; l < 3; l++) {                   // vạch chạm
+      const x = l * lw + lw / 2;
+      g.beginPath(); g.arc(x, hitY, R + 4, 0, 6.2832); g.strokeStyle = LANE_COL[l]; g.lineWidth = 4; g.stroke();
+      if (!isTouch) { g.fillStyle = 'rgba(255,255,255,.5)'; g.font = `700 16px ${FONT}`; g.fillText(LANE_KEY[l], x, hitY + 1); }
+    }
+    for (const n of this.notes) {                   // nốt: thanh dài (nếu có) rồi tới đầu tròn
+      if (n.st === 1) continue;
+      const d = n.t - s; if (d > KARA.fall) break;
+      const tailD = d + n.dur; if (tailD < -0.35) continue;
+      const x = n.lane * lw + lw / 2, holding = n.st === 3;
+      let yHead = hitY - d / KARA.fall * span; if (holding) yHead = Math.min(yHead, hitY);
+      g.globalAlpha = n.st === 2 ? 0.3 : 1;
+      if (n.dur > 0) {
+        const yTail = hitY - tailD / KARA.fall * span, w = R * 1.3;
+        g.globalAlpha *= holding ? 1 : 0.6; g.fillStyle = LANE_COL[n.lane]; g.beginPath(); g.roundRect(x - w / 2, yTail, w, Math.max(w, yHead - yTail), w / 2); g.fill();
+        g.globalAlpha = n.st === 2 ? 0.3 : 1;
+      }
+      g.beginPath(); g.arc(x, yHead, R, 0, 6.2832); g.fillStyle = LANE_COL[n.lane]; g.fill();
+      g.lineWidth = holding ? 5 : 3; g.strokeStyle = '#fff'; g.stroke();
+    }
+    g.globalAlpha = 1;
+    for (const f of this.fx) if (f.on) {            // gợn sóng khi chạm
+      const k = f.age / 0.4; g.globalAlpha = 1 - k; g.beginPath(); g.arc(f.lane * lw + lw / 2, hitY, R + 4 + 34 * k, 0, 6.2832);
+      g.strokeStyle = ['#ffd166', '#7bed9f', '#ff7675', '#ffffff'][f.kind]; g.lineWidth = 5; g.stroke();
+    }
+    g.globalAlpha = 1;
+    if (this.label.age < 0.7) {                     // nhãn chấm điểm
+      const k = this.label.age, sc = 1 + 0.4 * Math.max(0, 1 - k / 0.2);
+      g.globalAlpha = 1 - clamp((k - 0.4) / 0.3, 0, 1); g.fillStyle = this.label.color; g.font = `800 ${Math.round(28 * sc)}px ${FONT}`; g.fillText(this.label.text, W / 2, H * 0.46);
+      g.globalAlpha = 1;
+    }
+    if (this.combo >= 3) { g.fillStyle = '#fff'; g.font = `700 15px ${FONT}`; g.fillText(this.combo + ' combo', W / 2, H * 0.54); }
+    if (this.state === 'intro' && this.timer > 0.2) { g.fillStyle = '#fff'; g.font = `900 72px ${FONT}`; g.fillText(Math.min(3, Math.ceil(this.timer - 0.2)), W / 2, H * 0.4); }
+    g.restore();
+  },
+};
+// Nhấn xuống = tap/bắt đầu giữ; nhả = kết thúc giữ. Mỗi ngón (pointerId) gắn với một làn.
+const rhythmEl = $('rhythm');
+rhythmEl.addEventListener('pointerdown', (e) => {
+  if (G.act !== karaokeAct) return;
+  const r = rhythmEl.getBoundingClientRect(), lane = clamp(Math.floor((e.clientX - r.left) / r.width * 3), 0, 2);
+  rhythmEl.setPointerCapture(e.pointerId); karaokeAct.ptr.set(e.pointerId, lane); karaokeAct.press(lane); e.preventDefault();
+});
+['pointerup', 'pointercancel'].forEach((ev) => rhythmEl.addEventListener(ev, (e) => {
+  const lane = karaokeAct.ptr.get(e.pointerId); if (lane === undefined) return;
+  karaokeAct.ptr.delete(e.pointerId); karaokeAct.lift(lane);
+}));
+addEventListener('keydown', (e) => {
+  if (G.act !== karaokeAct || e.repeat || KEY_LANE[e.code] === undefined) return;
+  e.preventDefault(); karaokeAct.press(KEY_LANE[e.code]);
+});
+addEventListener('keyup', (e) => { if (G.act === karaokeAct && KEY_LANE[e.code] !== undefined) karaokeAct.lift(KEY_LANE[e.code]); });
+addEventListener('resize', () => { if (G.act === karaokeAct) karaokeAct.resize(); });
+
+/* =====================================================================
+   11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
+   ===================================================================== */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('ddc.' + k); return v === null ? d : v; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('ddc.' + k, v); } catch { /* chế độ riêng tư: bỏ qua */ } },
+};
+G.outfit = clamp(parseInt(store.get('outfit', '0'), 10) || 0, 0, OUTFITS.length - 1);
+$('nameIn').value = store.get('name', '');
+
+const wrap = $('outfits');
+OUTFITS.forEach((o, i) => {
+  const b = document.createElement('button'); b.className = 'outfit'; b.type = 'button';
+  b.setAttribute('aria-pressed', String(i === G.outfit));
+  const dot = document.createElement('i'); dot.style.background = o.swatch; b.append(dot, document.createTextNode(o.name));
+  b.addEventListener('click', () => { G.outfit = i; wrap.querySelectorAll('.outfit').forEach((x, k) => x.setAttribute('aria-pressed', String(k === i))); });
+  wrap.append(b);
+});
+
+function showHint(text, ms = 7000) {
+  const h = $('hint'); h.textContent = text; h.style.opacity = 1; clearTimeout(showHint.t); showHint.t = setTimeout(() => { h.style.opacity = 0; }, ms);
+}
+function enterParty() {
+  if (!G.ready || G.started) return;
+  G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
+  store.set('name', $('nameIn').value.trim()); store.set('outfit', G.outfit);
+  audio.init();                                     // cú chạm này mở khoá âm thanh
+  buildPlayer(OUTFITS[G.outfit], G.name);
+  cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
+  G.started = true;
+  $('splash').classList.add('hide'); setTimeout(() => { $('splash').style.display = 'none'; }, 600);
+  $('hud').style.display = 'block'; if (isTouch) joy.style.display = 'block';
+  if (showFps) fpsEl.style.display = 'block';
+  showHint(isTouch ? 'Kéo cần bên trái để đi · kéo màn hình để xoay góc nhìn' : 'WASD hoặc phím mũi tên để đi · kéo chuột để xoay góc nhìn');
+  setTimeout(() => { if (!G.act) showHint('Ra bàn mâm quả ngay trong cổng, bấm "Bưng tráp" nhé', 8000); }, 7500);
+}
+$('go').addEventListener('click', enterParty);
+$('nameIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterParty(); });
+
+buildWorld(); buildCouple(); planNPCs(); buildNPCs();
+cam.look.set(0, 1.5, -4); camera.position.set(0, 10, 28);
+requestAnimationFrame(loop);
+G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
+
+// Gỡ lỗi từ console: window.__ddc
+window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, party, keys, crowd, audio };
+</script>
+<script>
+  // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
+  document.getElementById('game').addEventListener('error', function () {
+    document.getElementById('err').style.display = 'block';
+    document.getElementById('go').textContent = 'Không tải được';
+  });
+</script>
+</body>
+</html>
