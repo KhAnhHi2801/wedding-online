@@ -88,6 +88,13 @@
   .songBtn:disabled { opacity:.6; cursor:wait; }
   #songBack { width:100%; margin-top:4px; padding:11px; border-radius:12px; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:15px; cursor:pointer; }
   #resPick { background:rgba(255,255,255,.14); color:#fff; }
+  #catchUI { position:absolute; inset:0; display:none; pointer-events:none; }
+  #catchMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
+    background:rgba(11,16,48,.75); border-radius:999px; padding:8px 18px; font-size:15px; font-weight:700; color:var(--gold); }
+  .cStage { position:absolute; left:50%; top:66%; width:0; height:0; }
+  #cTarget, #cRing { position:absolute; width:104px; height:104px; margin:-52px 0 0 -52px; border-radius:50%; }
+  #cTarget { border:5px solid #ffd166; background:rgba(255,209,102,.18); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#fff; }
+  #cRing { border:7px solid #ff7eb6; transform:scale(3.4); opacity:0; box-shadow:0 0 14px rgba(255,126,182,.8); }
   #knob { position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:50%; transform:translate(-50%,-50%);
     background:rgba(255,209,102,.75); border:2px solid #fff; }
 </style>
@@ -128,6 +135,10 @@
     <div class="progTrack"><div id="progFill"></div></div>
   </div>
   <button id="actBtn" type="button">Bưng tráp</button>
+  <div id="catchUI">
+    <div id="catchMsg"></div>
+    <div class="cStage"><div id="cTarget">BẮT!</div><div id="cRing"></div></div>
+  </div>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
     <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resPick" type="button">Bài khác</button><button id="resDone" type="button">Tiếp tục</button></div>
@@ -628,6 +639,8 @@ function planNPCs() {
     npcs.push(make(x, z, rot === null ? rand() * Math.PI * 2 : rot + (rand() - 0.5) * 0.4, false, kind));
     addCircle(x, z, 0.32); break;
   }
+  // 8 NPC dự phòng, ẩn sẵn (vis = 0): hoạt động Bắt hoa gọi ra nhảy lên; sau này dùng cho cảnh "đổ ra nhảy".
+  for (let k = 0; k < 8; k++) npcs.push(Object.assign(make(0, -30, Math.PI, false, 'adult'), { reserve: true, vis: 0 }));
 }
 
 /* Đặt (hoặc đặt lại) toàn bộ bộ phận của NPC thứ i. hop = nhảy lên (m), clap 0..1 = tay chắp lại vỗ.
@@ -639,15 +652,19 @@ function npPart(inst, idx, lx, ly, lz, color, first, o = {}) {
 }
 function placeNpc(i, hop, clap, first) {
   const n = npcs[i], hs = n.kind === 'kid' ? 1.22 : 1;                    // đầu trẻ con to hơn cho đáng yêu
-  npBase.position.set(n.x, 0, n.z); npBase.rotation.set(0, n.rot, 0); npBase.scale.setScalar(n.scale); npBase.updateMatrix();
+  // Trường n.vis (0..1, mặc định 1) thu/phóng cả NPC; n.jump = nhảy (m); n.up (0..1) = giơ hai tay lên trời. Hoạt động đặt các trường này.
+  npBase.position.set(n.x, 0, n.z); npBase.rotation.set(0, n.rot, 0); npBase.scale.setScalar(n.scale * (n.vis === undefined ? 1 : n.vis)); npBase.updateMatrix();
+  const jump = n.jump || 0, up = n.up || 0; hop += jump;
   npPart(NP.torso, i, 0, 0.775 + hop, 0, n.shirt, first);
   npPart(NP.head, i, 0, 1.35 + hop, 0, n.skin, first, { sx: hs, sy: hs, sz: hs });
   npPart(NP.hair, i, 0, 1.36 * (n.kind === 'kid' ? 1.015 : 1) + hop, 0, n.hair, first, { rx: -0.3, sx: hs, sy: hs, sz: hs });
   npPart(NP.eyes, i * 2, -0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first); npPart(NP.eyes, i * 2 + 1, 0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first);
   for (const s of [-1, 1]) {                                              // tay: buông thõng → chắp trước ngực khi vỗ
-    npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 - 0.19 * clap), 0.78 + hop + 0.2 * clap, 0.22 * clap, n.shirt, first, { rx: -1.25 * clap, rz: -s * 0.12 * (1 - clap) });
+    const cl = clap * (1 - up);                                           // giơ tay thì thôi vỗ
+    npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 - 0.19 * cl + 0.1 * up), 0.78 + hop + 0.2 * cl + 0.4 * up, 0.22 * cl, n.shirt, first,
+      { rx: -1.25 * cl, rz: -s * (0.12 * (1 - cl) * (1 - up) + 0.35 * up) });
   }
-  if (n.seated) npPart(NP.thighs, n.li, 0, 0.52, 0.22, n.pants, first); else npPart(NP.pants, n.li, 0, 0.25, 0, n.pants, first);
+  if (n.seated) npPart(NP.thighs, n.li, 0, 0.52, 0.22, n.pants, first); else npPart(NP.pants, n.li, 0, 0.25 + jump, 0, n.pants, first);
 }
 
 function buildNPCs() {
@@ -664,7 +681,7 @@ function buildNPCs() {
   let pi = 0, ti = 0;
   npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; placeNpc(i, 0, 0, true); });
   Object.values(NP).forEach(finishInst);
-  document.getElementById('count').textContent = N + 1;     // +1 là người chơi
+  document.getElementById('count').textContent = npcs.filter((n) => !n.reserve).length + 1;     // +1 là người chơi; NPC dự phòng chưa tính
 }
 
 /* =====================================================================
@@ -775,6 +792,7 @@ const stick = { u: 0, x0: 0 };                       // kéo ngang = "cần ảo
 canvas.addEventListener('pointerdown', (e) => {
   if (!G.started || dragId !== null) return;
   dragId = e.pointerId; lastX = e.clientX; lastY = e.clientY; stick.x0 = e.clientX; canvas.setPointerCapture(e.pointerId);
+  if (G.act === bouquetAct) bouquetAct.tap();       // Bắt hoa: chạm bất kỳ đâu trên màn hình
 });
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId !== dragId) return;
@@ -933,10 +951,10 @@ function buildCouple() {
   ];
   for (const [o, name, x, ry] of defs) {
     const c = buildCharacter(o, name);
-    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 1.95; scene.add(c.g); couple.push(c.g);
+    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 1.95; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
   }
 }
-const couple = [];                                   // nhóm 3D của cô dâu chú rể (ẩn khi camera karaoke ở sau lưng ca sĩ)
+const couple = [], coupleRigs = [];                  // [chú rể, cô dâu]: nhóm 3D (ẩn khi camera karaoke ở sau lưng ca sĩ) và khung xương để làm động tác
 
 /* ---- Bàn mâm quả cạnh cổng = điểm bắt đầu hoạt động 1 ---- */
 function buildActivitySpots() {
@@ -945,6 +963,7 @@ function buildActivitySpots() {
   const t = makeTray(); t.group.position.set(x, 0.92, z); world.add(t.group);
   addSpot({ x, z, r: 3.0, label: 'Bưng tráp', act: trayAct });
   addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
+  addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
 /* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
@@ -1127,7 +1146,7 @@ function updateCrowd(dt, t) {
   markNpcDirty();
   if (crowd.level > 0.15 && t > crowd.nextClap) { audio.clap(0.03 + 0.12 * crowd.level); crowd.nextClap = t + 0.07 + Math.random() * 0.12 / (0.3 + crowd.level); }
 }
-function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'arms']) NP[k].instanceMatrix.needsUpdate = true; }
+function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'arms', 'pants']) NP[k].instanceMatrix.needsUpdate = true; }
 
 /* =====================================================================
    14. HOẠT ĐỘNG 2: KARAOKE (rhythm game ~30 giây, 3 làn)
@@ -1380,6 +1399,136 @@ addEventListener('keyup', (e) => { if (G.act === karaokeAct && KEY_LANE[e.code] 
 addEventListener('resize', () => { if (G.act === karaokeAct) karaokeAct.resize(); });
 
 /* =====================================================================
+   15. HOẠT ĐỘNG 3: BẮT HOA CƯỚI
+   Cô dâu quay lưng ném hoa; 7 NPC dự phòng hiện ra quanh người chơi và cùng nhảy lên.
+   Vòng hồng co vào vòng vàng đúng lúc hoa tới tay: chạm trong ±0.12s = chuẩn, ±0.28s = được, ngoài đó = hụt
+   (hụt thì một NPC bắt được, kèm câu an ủi). Chỉ có MỘT lần chạm cho mỗi lần ném nên không spam được.
+   ===================================================================== */
+const BOUQ = { intro: 1.8, wind: 0.8, flight: 2.3, resolve: 2.2, perfect: 0.12, good: 0.28, catchers: 7, arcH: 2.4 };
+const BOUQ_START = new THREE.Vector3(0.85, 2.7, -17.4), BOUQ_LAND = new THREE.Vector3(0, 2.0, -9.9);
+const CATCH_OFF = [[-1.8, -0.8], [1.8, -0.8], [-1.0, -1.9], [1.0, -1.9], [-2.4, -1.8], [2.4, -1.8], [-0.2, -2.7], [0.2, -3.4]];   // vị trí NPC quanh người chơi (tương đối)
+const COMFORT = ['Hụt rồi, nhưng bó hoa về tay người xứng đáng. Lần sau nhé!', 'Không sao, hoa nào cũng thơm. Vui là chính!', 'Trượt thì vẫn vui: cả rạp cười ồ rồi kìa!'];
+const ease = (k) => k * k * (3 - 2 * k);
+
+function makeBouquet() {                            // bó hoa cưới: giấy gói nhọn xuống, các bông hồng/trắng, nơ đỏ
+  const g = new THREE.Group();
+  put(g, new THREE.ConeGeometry(0.13, 0.34, 8).rotateX(Math.PI), M(0xffffff), 0, -0.1, 0, false, false);
+  [0xff5c8a, 0xfff4e0, 0xff9ab0, 0xd7263d, 0xffd166, 0xfff4e0].forEach((c, i, a) => {
+    const t = i / a.length * Math.PI * 2; put(g, new THREE.IcosahedronGeometry(0.1, 0), M(c), Math.cos(t) * 0.1, 0.12 + (i % 2) * 0.04, Math.sin(t) * 0.1, false, false);
+  });
+  put(g, new THREE.IcosahedronGeometry(0.11, 0), M(0xff5c8a), 0, 0.2, 0, false, false);
+  put(g, new THREE.BoxGeometry(0.2, 0.05, 0.04), M(0xd7263d), 0, -0.12, 0.12, false, false);
+  g.scale.setScalar(1.6); return g;
+}
+
+const bouquetAct = {
+  state: 'idle', t: 0, ft: 0, judged: false, result: '', comfort: '', catchers: [], winner: -1, mesh: null, from: new THREE.Vector3(),
+
+  enter() {
+    couple.forEach((c) => { c.visible = true; }); player.tag.visible = false;
+    if (!this.mesh) { this.mesh = makeBouquet(); scene.add(this.mesh); }
+    this.catchers = []; npcs.forEach((n, i) => { if (n.reserve && this.catchers.length < BOUQ.catchers) this.catchers.push(i); });
+    this.reset();
+  },
+  exit() {
+    $('catchUI').style.display = 'none'; this.mesh.visible = false;
+    for (const i of this.catchers) { const n = npcs[i]; n.vis = 0; n.jump = 0; n.up = 0; placeNpc(i, 0, 0, false); }
+    markNpcDirty(); couple[1].rotation.y = -0.15; poseWalker(coupleRigs[1], 0, 0, false);
+    player.tag.visible = true; player.group.position.y = 0; player.rig.body.position.y = 0; crowd.target = 0;
+  },
+  reset() {
+    player.x = 0; player.z = -9.5; player.rot = Math.PI; player.group.position.set(0, 0, -9.5); player.group.rotation.y = Math.PI;   // đứng giữa thảm, nhìn lên sân khấu
+    cam.yaw = 0; cam.pitch = 0.28; cam.dist = 5.2; cam.lookY = 1.9;
+    this.catchers.forEach((i, k) => { const n = npcs[i]; n.x = player.x + CATCH_OFF[k][0]; n.z = player.z + CATCH_OFF[k][1]; n.rot = Math.PI; n.vis = 0; n.jump = 0; n.up = 0; });
+    this.winner = -1; this.judged = false; this.result = ''; this.state = 'intro'; this.t = 0; this.ft = 0; this.mesh.visible = false; this.mesh.scale.setScalar(1.6);
+    crowd.target = 0.15; $('catchUI').style.display = 'block'; $('cRing').style.opacity = 0;
+    $('catchMsg').textContent = 'Cô dâu sắp ném hoa… chuẩn bị nhé!';
+  },
+  launch() {
+    this.state = 'flight'; this.ft = 0; this.judged = false; this.mesh.visible = true; this.mesh.position.copy(BOUQ_START);
+    audio.noise(0.3, 0.1, 900); $('cRing').style.opacity = 1; $('catchMsg').textContent = 'Chạm khi vòng hồng khít vòng vàng!';
+  },
+  tap() {
+    if (this.state !== 'flight' || this.judged) return;
+    const d = Math.abs(this.ft - BOUQ.flight);
+    this.resolve(d <= BOUQ.perfect ? 'perfect' : d <= BOUQ.good ? 'good' : 'miss');
+  },
+  resolve(res) {
+    this.judged = true; this.result = res; this.state = 'resolve'; this.t = 0; this.from.copy(this.mesh.position);
+    $('cRing').style.opacity = 0; crowd.target = 0.9;
+    if (res === 'miss') {                           // hụt: NPC đứng gần chỗ hoa rơi nhất bắt được
+      let best = this.catchers[0], bd = 1e9;
+      for (const i of this.catchers) { const d = Math.hypot(npcs[i].x - BOUQ_LAND.x, npcs[i].z - BOUQ_LAND.z); if (d < bd) { bd = d; best = i; } }
+      this.winner = best; this.comfort = COMFORT[Math.floor(Math.random() * COMFORT.length)];
+      audio.tone(196, 0.35, 'triangle', 0.14); $('catchMsg').textContent = 'Ối, hụt mất rồi!';
+    } else {
+      audio.tone(880, 0.25, 'triangle', 0.16); audio.tone(1318, 0.4, 'triangle', 0.14, 0.12);
+      $('catchMsg').textContent = res === 'perfect' ? 'Chuẩn quá!' : 'Bắt được rồi!';
+    }
+  },
+  finish() {
+    this.state = 'done'; const r = this.result, score = r === 'perfect' ? 100 : r === 'good' ? 75 : 30;   // hụt vẫn được điểm an ủi
+    party.add(score); $('catchUI').style.display = 'none';
+    showResult({
+      title: r === 'miss' ? 'Hụt mất rồi!' : 'Bắt được hoa cưới!', score,
+      msg: r === 'perfect' ? 'Chuẩn từng li! Bó hoa nằm gọn trong tay bạn, cả rạp reo hò.' : r === 'good' ? 'Suýt tuột tay nhưng bắt được rồi! Cả rạp vỗ tay.' : this.comfort,
+      again: () => this.reset(), done: () => exitAct(),
+    });
+  },
+  update(dt) {
+    this.t += dt; const S = this.state, rig = coupleRigs[1], bride = couple[1];
+    if (S === 'intro') {                            // NPC hiện ra, cô dâu quay lưng lại với khách
+      this.catchers.forEach((i, c) => { npcs[i].vis = clamp((this.t - 0.15 - c * 0.08) / 0.4, 0, 1); });
+      bride.rotation.y = lerp(-0.15, Math.PI, ease(clamp(this.t / BOUQ.intro * 1.3, 0, 1)));
+      if (this.t >= BOUQ.intro) { this.state = 'wind'; this.t = 0; }
+    } else if (S === 'wind') {                      // cô dâu giơ hoa lên, lắc lấy đà
+      const k = clamp(this.t / BOUQ.wind, 0, 1);
+      rig.armL.rotation.x = rig.armR.rotation.x = lerp(-0.2, -2.7, ease(k)) + Math.sin(this.t * 14) * 0.1 * k;
+      if (this.t >= BOUQ.wind) this.launch();
+    } else if (S === 'flight') {
+      this.ft += dt; const u = Math.min(1, this.ft / BOUQ.flight), m = this.mesh;
+      m.position.lerpVectors(BOUQ_START, BOUQ_LAND, u); m.position.y += 4 * BOUQ.arcH * u * (1 - u); m.rotation.x += dt * 9; m.rotation.z += dt * 6;
+      rig.armL.rotation.x = rig.armR.rotation.x = lerp(-2.7, -0.5, clamp(this.ft / 0.3, 0, 1));
+      $('cRing').style.transform = 'scale(' + Math.max(0.5, 1 + 2.4 * (1 - this.ft / BOUQ.flight)).toFixed(3) + ')';
+      if (this.ft >= BOUQ.flight + BOUQ.good && !this.judged) this.resolve('miss');          // không chạm gì
+    } else if (S === 'resolve' || S === 'done') {
+      this.resolveStep();
+      if (S === 'resolve' && this.t >= BOUQ.resolve) this.finish();
+    }
+    this.pose(dt);
+  },
+  resolveStep() {                                   // hoa bay nốt tới người bắt được, rồi bám theo họ
+    const m = this.mesh, caught = this.result !== 'miss', k = clamp(this.t / (caught ? 0.3 : 0.6), 0, 1);
+    let tx = 0, ty = 2.0, tz = -9.9;
+    if (caught) ty += player.group.position.y; else { const n = npcs[this.winner]; tx = n.x; tz = n.z; ty = 1.95 * n.scale + (n.jump || 0) + 0.1; }
+    m.position.set(lerp(this.from.x, tx, ease(k)), lerp(this.from.y, ty, ease(k)) + Math.sin(k * Math.PI) * 0.5, lerp(this.from.z, tz, ease(k)));
+    m.rotation.x *= 0.9; m.rotation.z *= 0.9;
+    couple[1].rotation.y = lerp(Math.PI, 0.15, ease(clamp((this.t - 0.3) / 0.9, 0, 1)));  // cô dâu quay lại nhìn
+    coupleRigs[1].armL.rotation.x = coupleRigs[1].armR.rotation.x = lerp(-0.5, 0, clamp(this.t / 0.6, 0, 1));
+  },
+  pose(dt) {                                        // người chơi + NPC nhảy lên đón hoa
+    const S = this.state, pr = player.rig, celebrate = (S === 'resolve' || S === 'done') && this.result !== 'miss';
+    poseWalker(pr, 0, 0, false);
+    if ((S === 'flight' && this.ft / BOUQ.flight > 0.4) || celebrate) pr.armL.rotation.x = pr.armR.rotation.x = -2.9;   // giơ tay đón
+    const hop = celebrate && this.t < 1.2 ? Math.abs(Math.sin(this.t * 8)) * 0.3 : 0;
+    player.group.position.set(0, hop, -9.5);
+    const T = S === 'flight' ? this.ft : S === 'resolve' || S === 'done' ? BOUQ.flight + this.t : -9;   // thời gian tính từ lúc ném
+    this.catchers.forEach((i, k) => {
+      const n = npcs[i], tj = T - (BOUQ.flight - 1.0) - k * 0.06, win = i === this.winner;
+      n.jump = tj > 0 && tj < 0.9 ? 0.55 * Math.sin(tj / 0.9 * Math.PI) : win && S !== 'flight' ? 0.12 * Math.abs(Math.sin(this.t * 7)) : 0;
+      const want = T > BOUQ.flight - 1.3 && (T < BOUQ.flight + 1.0 || win) ? 1 : 0;
+      n.up += (want - n.up) * (1 - Math.exp(-10 * dt));
+      placeNpc(i, 0, 0, false);
+    });
+    markNpcDirty();
+  },
+};
+addEventListener('keydown', (e) => {
+  if (G.act !== bouquetAct || e.repeat || (e.code !== 'Space' && e.code !== 'Enter')) return;
+  e.preventDefault(); bouquetAct.tap();
+});
+
+/* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
    ===================================================================== */
 const store = {
@@ -1424,7 +1573,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, party, keys, crowd, audio };
+window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, party, keys, crowd, audio };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
