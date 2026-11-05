@@ -81,6 +81,21 @@
     display:none; pointer-events:auto; touch-action:none; }
   #karaQuit { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px + min(50vh,400px) + 10px); transform:translateX(-50%); display:none; pointer-events:auto;
     padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
+  #pourUI { position:absolute; inset:0; display:none; pointer-events:none; }
+  #pourRound { position:absolute; right:max(14px,env(safe-area-inset-right)); top:calc(24% - 4px); width:64px; text-align:center; font-size:13px; font-weight:700; color:#fff; }
+  #pourGauge { position:absolute; right:max(16px,env(safe-area-inset-right)); top:26%; width:56px; height:min(34vh,250px); border:3px solid rgba(255,255,255,.8); border-radius:6px 6px 24px 24px;
+    background:rgba(255,255,255,.1); overflow:hidden; }
+  #pourGauge > i { position:absolute; left:0; right:0; display:block; }
+  #pourFill { bottom:0; height:0; background:linear-gradient(#ffeaa0,#f0b13f); }
+  #pourGood { bottom:calc(.6/1.15*100%); height:calc(.25/1.15*100%); background:rgba(255,209,102,.28); }
+  #pourZone { bottom:calc(.85/1.15*100%); height:calc(.2/1.15*100%); background:rgba(90,230,130,.45); }
+  #pourSpill { top:0; height:calc(.1/1.15*100%); background:rgba(255,90,90,.4); }
+  #pourRim { bottom:calc(1/1.15*100%); height:0; border-top:2px dashed #fff; }
+  #pourBtn { position:absolute; left:50%; transform:translateX(-50%); bottom:max(30px,calc(env(safe-area-inset-bottom) + 20px)); width:min(76vw,300px); height:76px; border-radius:38px; border:0;
+    background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; font-size:20px; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.45); pointer-events:auto; touch-action:none; cursor:pointer; }
+  #pourBtn.on { transform:translateX(-50%) scale(.96); filter:brightness(1.12); }
+  #pourQuit { position:absolute; left:50%; transform:translateX(-50%); bottom:calc(max(30px,env(safe-area-inset-bottom) + 20px) + 76px + 16px); pointer-events:auto;
+    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
   #songPick { position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:16px; pointer-events:auto; background:rgba(0,0,0,.35); }
   #songPick .card { padding:18px; }
   #songPick h2 { margin:0 0 4px; color:var(--gold); }
@@ -97,7 +112,7 @@
   #songBack { width:100%; margin-top:4px; padding:11px; border-radius:12px; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:15px; cursor:pointer; }
   #resPick { background:rgba(255,255,255,.14); color:#fff; }
   #catchUI { position:absolute; inset:0; display:none; pointer-events:none; }
-  #catchMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
+  #catchMsg, #pourMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
     background:rgba(11,16,48,.75); border-radius:999px; padding:8px 18px; font-size:15px; font-weight:700; color:var(--gold); }
   .cStage { position:absolute; left:50%; top:66%; width:0; height:0; }
   #cTarget, #cRing { position:absolute; width:104px; height:104px; margin:-52px 0 0 -52px; border-radius:50%; }
@@ -147,6 +162,13 @@
   <div id="catchUI">
     <div id="catchMsg"></div>
     <div class="cStage"><div id="cTarget">BẮT!</div><div id="cRing"></div></div>
+  </div>
+  <div id="pourUI">
+    <div id="pourMsg"></div>
+    <div id="pourRound"></div>
+    <div id="pourGauge"><i id="pourFill"></i><i id="pourGood"></i><i id="pourZone"></i><i id="pourSpill"></i><i id="pourRim"></i></div>
+    <button id="pourQuit" type="button">Ngại quá, không rót nữa</button>
+    <button id="pourBtn" type="button">Giữ để rót</button>
   </div>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
@@ -974,6 +996,7 @@ function buildActivitySpots() {
   const t = makeTray(); t.group.position.set(x, 0.92, z); world.add(t.group);
   addSpot({ x, z, r: 3.0, label: 'Bưng tráp', act: trayAct });
   addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
+  addSpot({ x: -3.4, z: -10.6, r: 1.6, label: 'Rót tháp ly', act: pourAct });             // trước tháp ly bên trái sân khấu
   addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
@@ -1138,6 +1161,21 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
   },
   clap(vol) { this.noise(0.05, vol, 1500); },
+  startPour() {                                     // tiếng nước rót: nhiễu lọc dải, cao dần theo mực nước (setPour)
+    if (!this.ctx || !this.noiseBuf) return null;
+    const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 1.2; g.gain.value = 0;
+    g.gain.setTargetAtTime(0.18, c.currentTime, 0.05); s.connect(f); f.connect(g); g.connect(this.master); s.start();
+    return { s, f, g };
+  },
+  setPour(h, level) { if (h) h.f.frequency.setTargetAtTime(1200 + 2200 * Math.min(level, 1.1), this.ctx.currentTime, 0.05); },
+  stopPour(h) {
+    if (!h) return; const c = this.ctx; h.g.gain.setTargetAtTime(0, c.currentTime, 0.04);
+    try { h.s.stop(c.currentTime + 0.3); } catch { /* đã dừng */ }
+    setTimeout(() => { try { h.s.disconnect(); h.f.disconnect(); h.g.disconnect(); } catch { /* đã gỡ */ } }, 500);
+  },
+  clink(vol = 1) { this.tone(2093, 0.28, 'triangle', 0.1 * vol); this.tone(3136, 0.3, 'triangle', 0.06 * vol, 0.03); },
+  laugh() { for (let i = 0; i < 7; i++) this.tone(230 + Math.random() * 90, 0.1, 'sawtooth', 0.045, i * 0.13); this.noise(0.9, 0.05, 2500); },   // tiếng cười ồ tổng hợp
   /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
   sfxBuf: {}, sfxLive: {},
@@ -1619,6 +1657,123 @@ addEventListener('keydown', (e) => {
 });
 
 /* =====================================================================
+   16. HOẠT ĐỘNG 4: RÓT THÁP LY
+   Giữ nút để rót, thả ra khi nước lên vạch xanh (0.85–1.05 miệng ly). Dòng chảy mạnh dần theo thời gian giữ và hơi chập chờn.
+   Quá 1.05 là tràn: nước bắn ra, khán giả cười ồ. 3 ly (đỉnh tháp rồi hai tầng thấp), ly sau chảy nhanh hơn.
+   ===================================================================== */
+const POUR = { rounds: 3, rates: [0.40, 0.52, 0.66], perfect: 0.85, spill: 1.05, low: 0.6, spillTime: 0.8, settle: 1.6, scores: { perfect: 100, good: 70, low: 40, spill: 25 } };
+const TOWER = { x: -3.4, z: -12.6, topY: 0.85 };
+const POUR_CUPS = [[0, 0.78], [0.22, 0.52], [0.38, 0.26]].map(([dx, y]) => new THREE.Vector3(TOWER.x + dx, TOWER.topY + y + 0.09, TOWER.z));   // ly đích: đỉnh, tầng 3, tầng 2 (phía người chơi)
+const POUR_TXT = {
+  perfect: ['Vừa đẹp! Khéo tay quá!', 'Đầy ắp, không giọt nào rơi!'],
+  good: ['Hơi vơi một chút, nhưng được!', 'Gần đầy rồi, thêm chút nữa là chuẩn!'],
+  low: ['Vơi quá, khách chưa đã đâu!', 'Rót thêm chút nữa nhé!'],
+  spill: ['Tràn rồi! Cả rạp cười ồ!', 'Ôi, lênh láng cả bàn rồi!'],
+};
+
+const pourAct = {
+  state: 'idle', t: 0, round: 0, level: 0, holdT: 0, spillT: 0, tilt: 0, held: false, results: [], snd: null, built: false, hits: [],
+
+  build() {
+    this.built = true;
+    const bottle = new THREE.Group();
+    put(bottle, new THREE.CylinderGeometry(0.02, 0.022, 0.12, 8), M(0x1c5a37), 0, 0.06, 0, false, false);
+    put(bottle, new THREE.CylinderGeometry(0.055, 0.055, 0.24, 10), M(0x1c5a37), 0, 0.24, 0, false, false);
+    put(bottle, new THREE.CylinderGeometry(0.028, 0.028, 0.04, 8), M(0xffd166), 0, 0.0, 0, false, false);
+    put(bottle, new THREE.CylinderGeometry(0.057, 0.057, 0.1, 10), M(0xfff1d0), 0, 0.22, 0, false, false);
+    bottle.scale.setScalar(1.25); this.bottle = bottle;
+    const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.04, 1, 10).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0xffe28a }));
+    const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 6).translate(0, -0.5, 0), new THREE.MeshBasicMaterial({ color: 0xfff1b0, transparent: true, opacity: 0.9 }));
+    const puddle = new THREE.Mesh(new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffe28a, transparent: true, opacity: 0.75, depthWrite: false }));
+    this.liq = liq; this.stream = stream; this.puddle = puddle;
+    this.drops = Array.from({ length: 10 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffe28a })); m.userData = { v: new THREE.Vector3(), on: false }; return m; });
+    this.fxGroup = new THREE.Group(); this.fxGroup.add(bottle, liq, stream, puddle, ...this.drops); scene.add(this.fxGroup);
+  },
+  enter() {
+    if (!this.built) this.build();
+    couple.forEach((c) => { c.visible = true; }); player.tag.visible = false;
+    this.reset();
+  },
+  exit() {
+    audio.stopPour(this.snd); this.snd = null; this.held = false; $('pourUI').style.display = 'none'; this.fxGroup.visible = false;
+    player.tag.visible = true; player.group.position.y = 0; player.rig.body.position.y = 0; crowd.target = 0;
+  },
+  reset() {
+    player.x = TOWER.x + 1.25; player.z = TOWER.z + 0.4; player.rot = -Math.PI / 2; player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;   // đứng bên phải tháp, nhìn về phía tháp
+    cam.yaw = 0.1; cam.pitch = 0.2; cam.dist = 4.4; cam.lookY = 1.5;   // camera ở phía khách nhìn vào: thấy cả tháp, chai và người chơi đứng bên phải
+    this.round = 0; this.results = []; this.fxGroup.visible = true; this.held = false; $('pourUI').style.display = 'block'; crowd.target = 0.15;
+    this.prepRound(); this.state = 'intro'; this.t = 0;
+    $('pourMsg').textContent = 'Giữ nút để rót, thả ra khi nước chạm vạch xanh nhé!';
+  },
+  prepRound() {
+    const c = POUR_CUPS[this.round]; this.level = 0; this.holdT = 0; this.spillT = 0; this.tilt = 0; this.spilled = false;
+    this.mouth = new THREE.Vector3(c.x + 0.02, c.y + 0.2, c.z); this.liq.position.set(c.x, c.y - 0.062, c.z);
+    this.puddle.position.set(c.x, c.y - 0.06, c.z); this.puddle.scale.setScalar(0.001); this.puddle.visible = false;
+    this.drops.forEach((d) => { d.visible = false; d.userData.on = false; }); this.stream.visible = false;
+    $('pourRound').textContent = 'Ly ' + (this.round + 1) + '/' + POUR.rounds; this.setGauge();
+  },
+  setGauge() { $('pourFill').style.height = Math.min(100, this.level / 1.15 * 100) + '%'; },
+  hold(on) {
+    $('pourBtn').classList.toggle('on', on); this.held = on;
+    if (on && this.state === 'ready') { this.state = 'pour'; this.holdT = 0; this.snd = audio.startPour(); $('pourMsg').textContent = 'Đang rót… thả ra khi nước lên vạch xanh!'; }
+    else if (!on && this.state === 'pour') this.judge(this.spilled ? 'spill' : this.level >= POUR.perfect ? 'perfect' : this.level >= POUR.low ? 'good' : 'low');
+  },
+  judge(kind) {
+    audio.stopPour(this.snd); this.snd = null; this.results.push(kind); this.state = 'settle'; this.t = 0; this.stream.visible = false;
+    $('pourMsg').textContent = pick(POUR_TXT[kind]);
+    if (kind === 'spill') { audio.laugh(); crowd.target = 1; } else if (kind === 'perfect') { audio.clink(); crowd.target = 0.7; } else if (kind === 'good') { audio.clink(0.6); crowd.target = 0.4; } else crowd.target = 0.2;
+  },
+  finish() {
+    this.state = 'done'; const r = this.results, n = (k) => r.filter((x) => x === k).length;
+    const score = Math.round(r.reduce((a, k) => a + POUR.scores[k], 0) / r.length); party.add(score); $('pourUI').style.display = 'none';
+    showResult({
+      title: n('spill') >= 2 ? 'Tràn lai láng!' : n('perfect') >= 2 ? 'Rót khéo như bartender!' : 'Rót xong tháp ly!', score,
+      msg: `${n('perfect')} ly đầy vừa, ${n('good')} ly hơi vơi, ${n('low')} ly vơi quá, ${n('spill')} ly tràn. ` +
+        (n('spill') >= 2 ? 'Cả rạp cười ồ, rượu thơm cả lối đi!' : n('perfect') >= 2 ? 'Ngọc Khánh và Quốc Tuân nâng ly cảm ơn bạn!' : 'Khách nào cũng có ly để nâng, vui là chính!'),
+      again: () => this.reset(), done: () => exitAct(),
+    });
+  },
+  update(dt) {
+    this.t += dt; const S = this.state;
+    if (S === 'intro') { if (this.t >= 1.2) { this.state = 'ready'; this.t = 0; } }
+    else if (S === 'pour') {
+      this.holdT += dt;
+      const flow = POUR.rates[this.round] * (0.75 + 0.5 * Math.min(1, this.holdT / 1.2)) * (1 + 0.07 * Math.sin(this.t * 6.5));
+      this.level += flow * dt; audio.setPour(this.snd, this.level);
+      if (this.level >= POUR.spill) { if (!this.spilled) { this.spilled = true; this.spillT = 0; this.startSpill(); } this.spillT += dt; if (this.spillT >= POUR.spillTime) this.judge('spill'); }
+      else if (this.level >= POUR.perfect) $('pourMsg').textContent = 'Thả ra đi! Thả ra đi!';
+      else if (this.level >= POUR.low) $('pourMsg').textContent = 'Sắp đầy rồi…';
+    } else if (S === 'settle') {
+      if (this.t >= POUR.settle) {
+        if (this.round + 1 >= POUR.rounds) this.finish();
+        else { this.round++; this.prepRound(); this.state = 'ready'; this.t = 0; crowd.target = 0.15; $('pourMsg').textContent = 'Ly kế tiếp chảy nhanh hơn đó, giữ nút nào!'; }
+      }
+    }
+    this.visuals(dt);
+  },
+  startSpill() { this.puddle.visible = true; this.drops.forEach((d, i) => { const a = i / this.drops.length * Math.PI * 2; d.position.set(POUR_CUPS[this.round].x, POUR_CUPS[this.round].y + 0.07, POUR_CUPS[this.round].z); d.userData.v.set(Math.cos(a) * 0.5, 0.9 + Math.random() * 0.5, Math.sin(a) * 0.5); d.userData.on = true; d.visible = true; }); },
+  visuals(dt) {
+    const S = this.state, pouring = S === 'pour', c = POUR_CUPS[this.round], lv = Math.min(this.level, 1);
+    this.liq.scale.set(1, Math.max(0.0001, lv * 0.122), 1); this.liq.visible = this.level > 0.005;
+    const tiltTarget = pouring ? 1 : 0; this.tilt += (tiltTarget - this.tilt) * (1 - Math.exp(-7 * dt));
+    this.bottle.position.copy(this.mouth); this.bottle.rotation.z = lerp(-2.5, -1.15, this.tilt) + (S === 'ready' ? Math.sin(this.t * 2.2) * 0.04 : 0);
+    this.bottle.position.y += S === 'intro' ? (1 - ease(clamp(this.t / 1.2, 0, 1))) * 0.35 : 0;
+    this.stream.visible = pouring && this.tilt > 0.5;
+    if (this.stream.visible) { const top = c.y - 0.062 + lv * 0.122; this.stream.position.set(this.mouth.x, this.mouth.y - 0.01, this.mouth.z); this.stream.scale.y = Math.max(0.01, this.mouth.y - 0.01 - top); }
+    if (this.puddle.visible) this.puddle.scale.setScalar(Math.min(0.3, this.puddle.scale.x + dt * 0.35));
+    for (const d of this.drops) if (d.userData.on) { const v = d.userData.v; v.y -= 4.5 * dt; d.position.addScaledVector(v, dt); if (d.position.y < c.y - 0.1) { d.userData.on = false; d.visible = false; } }
+    const pr = player.rig; poseWalker(pr, 0, 0, false); pr.armR.rotation.x = lerp(-1.6, -2.5, this.tilt); pr.armL.rotation.x = -0.35;
+    this.setGauge();
+  },
+};
+$('pourBtn').addEventListener('pointerdown', (e) => { if (G.act !== pourAct) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); pourAct.hold(true); });
+for (const ev of ['pointerup', 'pointercancel']) $('pourBtn').addEventListener(ev, () => { if (G.act === pourAct) pourAct.hold(false); });
+addEventListener('keydown', (e) => { if (G.act !== pourAct || e.repeat) return; if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); pourAct.hold(true); } else if (e.code === 'Escape') quitPour(); });
+addEventListener('keyup', (e) => { if (G.act === pourAct && (e.code === 'Space' || e.code === 'Enter')) pourAct.hold(false); });
+function quitPour() { if (G.act !== pourAct || pourAct.state === 'done') return; exitAct(); showHint('Ngại quá thì thôi, lúc nào rảnh rót tiếp nhé ♥', 4000); }
+$('pourQuit').addEventListener('click', (e) => { e.currentTarget.blur(); quitPour(); });
+
+/* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
    ===================================================================== */
 const store = {
@@ -1663,7 +1818,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, party, keys, crowd, audio };
+window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, party, keys, crowd, audio };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
