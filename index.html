@@ -698,10 +698,11 @@ function placeNpc(i, hop, clap, first) {
   npBase.position.set(n.x, 0, n.z); npBase.rotation.set(0, n.rot, 0); npBase.scale.setScalar(n.scale * (n.vis === undefined ? 1 : n.vis)); npBase.updateMatrix();
   const jump = n.jump || 0, up = n.up || 0; hop += jump;
   npPart(NP.torso, i, 0, 0.775 + hop, 0, n.shirt, first);
-  npPart(NP.head, i, 0, 1.35 + hop, 0, n.skin, first, { sx: hs, sy: hs, sz: hs });
-  npPart(NP.hair, i, 0, 1.36 * (n.kind === 'kid' ? 1.015 : 1) + hop, 0, n.hair, first, { rx: -0.42, sx: hs, sy: hs, sz: hs });
-  npPart(NP.mouth, i, 0, 1.24 + hop, 0.275 * hs, 0xb0413f, first, { sx: hs, sy: hs, sz: hs });
-  npPart(NP.eyes, i * 2, -0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first); npPart(NP.eyes, i * 2 + 1, 0.1 * hs, 1.34 + hop, 0.27 * hs, NP_INK, first);
+  npPart(NP.neck, i, 0, 1.08 + hop, 0, n.skin, first);
+  npPart(NP.head, i, 0, 1.43 + hop, 0, n.skin, first, { sx: hs, sy: hs, sz: hs });
+  npPart(NP.hair, i, 0, 1.44 * (n.kind === 'kid' ? 1.015 : 1) + hop, 0, n.hair, first, { rx: -0.42, sx: hs, sy: hs, sz: hs });
+  npPart(NP.mouth, i, 0, 1.32 + hop, 0.275 * hs, 0xb0413f, first, { sx: hs, sy: hs, sz: hs });
+  npPart(NP.eyes, i * 2, -0.1 * hs, 1.42 + hop, 0.27 * hs, NP_INK, first); npPart(NP.eyes, i * 2 + 1, 0.1 * hs, 1.42 + hop, 0.27 * hs, NP_INK, first);
   for (const s of [-1, 1]) {                                              // tay: buông thõng → chắp trước ngực khi vỗ
     const cl = clap * (1 - up);                                           // giơ tay thì thôi vỗ
     npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 - 0.19 * cl + 0.1 * up), 0.78 + hop + 0.2 * cl + 0.4 * up, 0.22 * cl, n.shirt, first,
@@ -714,6 +715,7 @@ function buildNPCs() {
   const N = npcs.length, standing = npcs.filter((n) => !n.seated).length, seated = N - standing;
   const mk = (geo, n, cast = true) => { const m = makeInst(geo, M(0xffffff), n, cast, true); world.add(m); return m; };
   const torso = mk(new THREE.CylinderGeometry(0.2, 0.26, 0.55, 8), N);
+  const neck = mk(new THREE.CylinderGeometry(0.06, 0.07, 0.2, 8), N, false);
   const head = mk(new THREE.SphereGeometry(0.3, 12, 9), N);
   const hair = mk(new THREE.SphereGeometry(0.325, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.47), N);
   const eyes = mk(new THREE.SphereGeometry(0.04, 6, 5), N * 2, false);
@@ -721,7 +723,7 @@ function buildNPCs() {
   const arms = mk(new THREE.CapsuleGeometry(0.065, 0.28, 3, 6), N * 2);
   const pants = mk(new THREE.CylinderGeometry(0.18, 0.2, 0.5, 8), standing);
   const thighs = mk(new THREE.BoxGeometry(0.36, 0.16, 0.46), seated);
-  Object.assign(NP, { torso, head, hair, eyes, mouth, arms, pants, thighs });
+  Object.assign(NP, { torso, neck, head, hair, eyes, mouth, arms, pants, thighs });
   let pi = 0, ti = 0;
   npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; placeNpc(i, 0, 0, true); });
   Object.values(NP).forEach(finishInst);
@@ -775,17 +777,19 @@ function buildCharacter(o, name) {
     put(body, new THREE.BoxGeometry(0.48, 0.5, 0.3), topMat, 0, 0.75, 0);
   }
   // Đầu to (chibi): mặt về +z, tóc trùm sau/đỉnh đầu, búi tóc cho một số bộ
-  put(body, new THREE.SphereGeometry(0.38, 16, 12), skin, 0, 1.13, 0);
-  const hair = put(body, new THREE.SphereGeometry(0.405, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.46), hairMat, 0, 1.15, 0); hair.rotation.x = -0.4;   // tóc cao hơn: lộ trán và mắt
-  put(body, new THREE.SphereGeometry(0.34, 12, 8), hairMat, 0, 1.1, -0.12);                       // tóc phía sau gáy
-  if (o.bun) put(body, new THREE.SphereGeometry(0.15, 10, 8), hairMat, 0, 1.55, -0.12);
+  const headG = new THREE.Group(); headG.position.y = 0.32; body.add(headG);   // nâng đầu lên để lộ cổ
+  put(body, new THREE.CylinderGeometry(0.075, 0.09, 0.3, 10), skin, 0, 1.05, 0);                   // cổ
+  put(headG, new THREE.SphereGeometry(0.38, 16, 12), skin, 0, 1.13, 0);
+  const hair = put(headG, new THREE.SphereGeometry(0.405, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.46), hairMat, 0, 1.15, 0); hair.rotation.x = -0.4;   // tóc cao hơn: lộ trán và mắt
+  put(headG, new THREE.SphereGeometry(0.34, 12, 8), hairMat, 0, 1.1, -0.12);                       // tóc phía sau gáy
+  if (o.bun) put(headG, new THREE.SphereGeometry(0.15, 10, 8), hairMat, 0, 1.55, -0.12);
   for (const sx of [-1, 1]) {
-    put(body, new THREE.SphereGeometry(0.045, 8, 6), M(0x1a1a22), sx * 0.13, 1.1, 0.34, false, false);   // mắt
-    put(body, new THREE.SphereGeometry(0.05, 8, 6), M(0xff9aa8), sx * 0.22, 1.02, 0.3, false, false).scale.z = 0.4; // má hồng
-    const brow = put(body, new THREE.BoxGeometry(0.1, 0.022, 0.02), hairMat, sx * 0.13, 1.23, 0.345, false, false); brow.rotation.z = -sx * 0.1;   // lông mày
+    put(headG, new THREE.SphereGeometry(0.045, 8, 6), M(0x1a1a22), sx * 0.13, 1.1, 0.34, false, false);   // mắt
+    put(headG, new THREE.SphereGeometry(0.05, 8, 6), M(0xff9aa8), sx * 0.22, 1.02, 0.3, false, false).scale.z = 0.4; // má hồng
+    const brow = put(headG, new THREE.BoxGeometry(0.1, 0.022, 0.02), hairMat, sx * 0.13, 1.23, 0.345, false, false); brow.rotation.z = -sx * 0.1;   // lông mày
   }
-  put(body, new THREE.SphereGeometry(0.035, 8, 6), M(0xe8b592), 0, 1.07, 0.375, false, false);                    // mũi
-  const smile = put(body, new THREE.TorusGeometry(0.07, 0.014, 6, 14, Math.PI), M(0x9b2c2c), 0, 1.03, 0.358, false, false); smile.rotation.z = Math.PI;   // miệng cười
+  put(headG, new THREE.SphereGeometry(0.035, 8, 6), M(0xe8b592), 0, 1.07, 0.375, false, false);                    // mũi
+  const smile = put(headG, new THREE.TorusGeometry(0.07, 0.014, 6, 14, Math.PI), M(0x9b2c2c), 0, 1.03, 0.358, false, false); smile.rotation.z = Math.PI;   // miệng cười
 
   // Bảng tên trên đầu
   const tex = canvasTex(512, 96, (c, w, h) => {
@@ -793,7 +797,7 @@ function buildCharacter(o, name) {
     c.fillStyle = 'rgba(11,16,48,.72)'; c.beginPath(); c.roundRect((w - tw) / 2, 12, tw, h - 24, 24); c.fill();
     c.fillStyle = '#ffe28a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(name, w / 2, h / 2 + 2, w - 60);
   });
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false })); tag.scale.set(2.1, 0.39, 1); tag.position.set(0, 2.05, 0);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false })); tag.scale.set(2.1, 0.39, 1); tag.position.set(0, 2.37, 0);
   g.add(tag);
 
   return { g, rig: { body, legL, legR, armL, armR }, tag };
@@ -1001,10 +1005,10 @@ function buildCouple() {
   ];
   for (const [o, name, x, ry] of defs) {
     const c = buildCharacter(o, name);
-    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 1.95; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
+    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 2.02; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
   }
   const mom = buildCharacter({ kind: 'aodai', top: 0xc2185b, bottom: 0xfff4e0, arm: 0xc2185b, hair: 0x6b6b6b, bun: true }, 'Mẹ cô dâu');
-  mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = -Math.PI / 2; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 1.95;
+  mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = -Math.PI / 2; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 2.02;
   scene.add(mom.g); couple.push(mom.g); addCircle(MOM.rest.x, MOM.rest.z, 0.4); MOM.g = mom.g; MOM.rig = mom.rig;
   const env = new THREE.Group();                                  // bao lì xì: nền đỏ, dải và vòng vàng
   put(env, new THREE.BoxGeometry(0.17, 0.26, 0.025), M(0xd7263d), 0, 0, 0, false, false);
@@ -1305,7 +1309,7 @@ function updateCrowd(dt, t) {
   markNpcDirty();
   if (!crowd.silent && crowd.level > 0.15 && t > crowd.nextClap) { audio.clap(0.03 + 0.12 * crowd.level); crowd.nextClap = t + 0.07 + Math.random() * 0.12 / (0.3 + crowd.level); }
 }
-function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'mouth', 'arms', 'pants']) NP[k].instanceMatrix.needsUpdate = true; }
+function markNpcDirty() { for (const k of ['torso', 'neck', 'head', 'hair', 'eyes', 'mouth', 'arms', 'pants']) NP[k].instanceMatrix.needsUpdate = true; }
 
 /* =====================================================================
    14. HOẠT ĐỘNG 2: KARAOKE (rhythm game ~30 giây, 3 làn)
