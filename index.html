@@ -100,10 +100,6 @@
   #toastMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center; opacity:0; transition:opacity .25s;
     background:rgba(11,16,48,.8); border-radius:18px; padding:10px 18px; font-size:16px; font-weight:700; color:var(--gold); }
   #toastCount { position:absolute; left:50%; transform:translateX(-50%); top:max(26px,5%); background:rgba(11,16,48,.7); border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
-  #toastBtn { position:absolute; left:50%; transform:translateX(-50%); bottom:max(30px,calc(env(safe-area-inset-bottom) + 20px)); display:none; min-width:min(76vw,300px); height:64px; border-radius:32px; border:0; padding:0 24px;
-    background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; font-size:19px; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.45); pointer-events:auto; cursor:pointer; touch-action:manipulation; animation:toastPulse 1.1s ease-in-out infinite; }
-  @keyframes toastPulse { 50% { transform:translateX(-50%) scale(1.06); } }
-  #toastQuit { position:absolute; right:12px; top:max(70px,12%); margin-top:56px; pointer-events:auto; padding:8px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:13px; font-weight:600; cursor:pointer; touch-action:manipulation; }
   #songPick { position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:16px; pointer-events:auto; background:rgba(0,0,0,.35); }
   #songPick .card { padding:18px; }
   #songPick h2 { margin:0 0 4px; color:var(--gold); }
@@ -181,8 +177,6 @@
   <div id="toastUI">
     <div id="toastCount"></div>
     <div id="toastMsg"></div>
-    <button id="toastQuit" type="button">Mỏi chân rồi, nghỉ thôi</button>
-    <button id="toastBtn" type="button">Cụng ly</button>
   </div>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
@@ -843,7 +837,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId !== dragId) return;
-  if (G.act && !G.act.free) { stick.u = clamp((e.clientX - stick.x0) / 45, -1, 1); return; }
+  if (G.act) { stick.u = clamp((e.clientX - stick.x0) / 45, -1, 1); return; }
   cam.yaw -= (e.clientX - lastX) * 0.0055; cam.pitch = clamp(cam.pitch + (e.clientY - lastY) * 0.004, CFG.camPitchMin, CFG.camPitchMax);
   lastX = e.clientX; lastY = e.clientY;
 });
@@ -904,7 +898,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.started) {
     if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
-    updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
+    toastAct.tick(); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
   }
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
   renderer.render(scene, camera);
@@ -1011,8 +1005,7 @@ function buildActivitySpots() {
   addSpot({ x, z, r: 3.0, label: 'Bưng tráp', act: trayAct });
   addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
   addSpot({ x: -3.4, z: -10.6, r: 1.6, label: 'Rót tháp ly', act: pourAct });             // trước tháp ly bên trái sân khấu
-  addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });
-  addSpot({ x: 0, z: 5.5, r: 2.0, label: 'Đi mời rượu', act: toastAct });                // giữa thảm đỏ, từ đây đi ra các bàn          // giữa thảm đỏ, cách điểm karaoke ~5m
+  addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
 /* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
@@ -1801,11 +1794,11 @@ $('pourQuit').addEventListener('click', (e) => { e.currentTarget.blur(); quitPou
 
 
 /* =====================================================================
-   17. HOẠT ĐỘNG 5: ĐI MỜI RƯỢU
-   Người chơi tự đi lại (updatePlayer) giữa các bàn. Tới gần bàn nào thì hiện nút "Cụng ly": bấm → hô "dzô", nghe lời chúc,
-   chỉ những người ngồi bàn đó nhảy lên. Mỗi bàn chỉ tính điểm lần đầu; đủ hết các bàn thì được danh hiệu.
+   17. HOẠT ĐỘNG 5: ĐI MỜI RƯỢU (chạy nền, không cần bật)
+   Đi lại gần bàn nào lần đầu thì tự cụng ly: nghe tiếng "dzô", hiện lời chúc, chỉ người ngồi bàn đó nhảy.
+   Người chơi vẫn đi tiếp được trong lúc đó. Đủ hết các bàn thì hiện bảng danh hiệu (lúc đó toastAct mới chiếm quyền như một hoạt động).
    ===================================================================== */
-const TOAST = { reach: 3.4, perTable: 10, bounce: 2.2 };
+const TOAST = { reach: 3.5, perTable: 10 };
 const TOAST_WISHES = [
   'Trăm năm hạnh phúc, sớm có tin vui nhé!', 'Chúc hai bạn đầu bạc răng long!', 'Vợ chồng son thuận hòa, tiền vào như nước!',
   'Chúc Ngọc Khánh và Quốc Tuân hạnh phúc dài lâu!', 'Sớm có thêm thành viên bé xíu nha!', 'Cơm lành canh ngọt, nhà cửa ấm êm!',
@@ -1814,91 +1807,59 @@ const TOAST_WISHES = [
   'Yêu nhau lắm cắn nhau đau, nhưng cưới rồi thì thương nhau mãi!', 'Hai họ vui vầy, con cháu đề huề!',
 ];
 const toastAct = {
-  free: true, state: 'walk', visited: new Set(), near: -1, t: 0, tableIdx: -1, deck: [], arrows: [], cheerDur: TOAST.bounce, built: false,
+  visited: new Set(), cheers: new Map(), deck: [], arrows: [], cheerDur: 6, built: false, shown: null, msgUntil: 0, finished: false,
   build() {
     this.built = true;
     this.arrows = tablePos.map((p) => {
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0x7dffb0 }));
-      m.position.set(p.x, 2.6, p.z); m.visible = false; scene.add(m); return m;
+      m.position.set(p.x, 2.6, p.z); scene.add(m); return m;
     });
+    audio.loadSfx('cheers').then((buf) => { if (buf) this.cheerDur = clamp(buf.duration - (buf.lead || 0), 1.6, 7); });
+    this.count();
   },
-  enter() {
-    if (!this.built) this.build();
-    audio.loadSfx('cheers'); this.visited.clear(); this.deck = []; this.state = 'walk'; this.near = -1; this.tableIdx = -1;
-    $('toastUI').style.display = 'block'; $('toastBtn').style.display = 'none'; $('toastMsg').style.opacity = 0; if (isTouch) joy.style.display = 'block';
-    this.arrows.forEach((a) => { a.visible = true; }); this.count();
-    showHint('Đi tới từng bàn rồi bấm "Cụng ly" để chúc nhé!', 6000);
+  count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn · lại gần bàn để cụng ly`; },
+  cheer(i) {
+    if (!this.deck.length) this.deck = TOAST_WISHES.slice().sort(() => Math.random() - 0.5);
+    this.visited.add(i); this.cheers.set(i, performance.now() / 1000); this.count(); party.add(TOAST.perTable);
+    const m = $('toastMsg'); m.textContent = `Bàn ${i + 1}: “${this.deck.pop()}”`; m.style.opacity = 1; this.msgUntil = performance.now() / 1000 + 4.5;
+    $('hint').style.opacity = 0;                    // lời chúc chiếm chỗ dòng gợi ý
+    audio.playSfx('cheers').then((ok) => { if (!ok) audio.clink(); });
   },
-  exit() {
-    $('toastUI').style.display = 'none'; this.arrows.forEach((a) => { a.visible = false; }); audio.stopSfx('cheers', 0.2);
-    this.bounce(-1, 0); poseWalker(player.rig, 0, 0, false);
-  },
-  count() { $('toastCount').textContent = `Đã chúc ${this.visited.size}/${tablePos.length} bàn`; },
-  nearest() {
-    let best = -1, bd = TOAST.reach;
-    tablePos.forEach((p, i) => { const d = Math.hypot(player.x - p.x, player.z - p.z); if (d < bd) { bd = d; best = i; } });
-    return best;
-  },
-  setBtn(i) {
-    if (i === this.near) return; this.near = i; const b = $('toastBtn');
-    b.style.display = i < 0 ? 'none' : 'block'; if (i >= 0) b.textContent = (this.visited.has(i) ? 'Cụng ly lại bàn ' : 'Cụng ly với bàn ') + (i + 1);
-  },
-  bounce(table, phase) {                            // chỉ người ngồi bàn `table` nhảy; table < 0 thì tất cả về chỗ cũ
+  bounce(now) {                                    // chỉ người ngồi bàn đang cụng ly nhảy; hết giờ thì về chỗ
     let dirty = false;
     npcs.forEach((n, i) => {
       if (n.table === undefined) return;
-      const on = n.table === table, jump = on ? 0.13 * Math.abs(Math.sin(phase * 9 + n.ph)) : 0, up = on ? 1 : 0;
-      if (n.jump !== jump || n.up !== up) { n.jump = jump; n.up = up; placeNpc(i, 0, 0, false); dirty = true; }
+      const t0 = this.cheers.get(n.table), on = t0 !== undefined, jump = on ? 0.13 * Math.abs(Math.sin((now - t0) * 9 + n.ph)) : 0, up = on ? 1 : 0;
+      if ((n.jump || 0) !== jump || (n.up || 0) !== up) { n.jump = jump; n.up = up; placeNpc(i, 0, 0, false); dirty = true; }
     });
     if (dirty) markNpcDirty();
   },
-  cheer() {
-    const i = this.near; if (i < 0 || this.state !== 'walk') return;
-    this.state = 'cheer'; this.t = 0; this.tableIdx = i; this.setBtn(-1);
-    if (!this.deck.length) this.deck = TOAST_WISHES.slice().sort(() => Math.random() - 0.5);
-    const first = !this.visited.has(i); this.visited.add(i);
-    const m = $('toastMsg'); m.textContent = `Bạn chúc bàn ${i + 1}: “${this.deck.pop()}”`; m.style.opacity = 1;
-    audio.loadSfx('cheers').then((buf) => { this.cheerDur = buf ? clamp(buf.duration - (buf.lead || 0), 1.6, 7) : TOAST.bounce; });
-    audio.playSfx('cheers').then((ok) => { if (!ok) audio.clink(); });
-    if (first) { party.add(TOAST.perTable); this.count(); }
-  },
-  update(dt) {
-    if (this.state === 'walk') {
-      updatePlayer(dt); this.setBtn(this.nearest());
-    } else if (this.state === 'cheer') {
-      this.t += dt; const p = tablePos[this.tableIdx];
-      let d = Math.atan2(p.x - player.x, p.z - player.z) - player.rot; d = Math.atan2(Math.sin(d), Math.cos(d)); player.rot += d * (1 - Math.exp(-10 * dt));
-      player.group.rotation.y = player.rot; poseWalker(player.rig, 0, 0, true);      // giơ ly ra phía trước
-      this.bounce(this.tableIdx, this.t);
-      if (this.t >= this.cheerDur) {
-        this.bounce(-1, 0); $('toastMsg').style.opacity = 0; poseWalker(player.rig, 0, 0, false);
-        if (this.visited.size === tablePos.length) this.finish(); else this.state = 'walk';
-      }
+  tick() {
+    if (!this.built) this.build();
+    const idle = !G.act, now = performance.now() / 1000;
+    if (idle !== this.shown) { this.shown = idle; $('toastUI').style.display = idle ? 'block' : 'none'; this.arrows.forEach((a, i) => { a.visible = idle && !this.visited.has(i); }); }
+    if (G.act && G.act !== this) this.cheers.clear();             // vào hoạt động khác: cả bàn ngồi xuống
+    else if (idle) {
+      tablePos.forEach((p, i) => { if (!this.visited.has(i) && Math.hypot(player.x - p.x, player.z - p.z) < TOAST.reach) { this.cheer(i); this.arrows[i].visible = false; } });
+      this.arrows.forEach((a) => { if (a.visible) { a.position.y = 2.6 + Math.sin(now * 3) * 0.12; a.rotation.y = now * 2; } });
     }
-    const pulse = 2.6 + Math.sin(performance.now() / 300) * 0.12;
-    this.arrows.forEach((a, i) => { if (a.visible) { a.visible = !this.visited.has(i); a.position.y = pulse; a.rotation.y += dt * 2; } });
+    for (const [i, t0] of this.cheers) if (now - t0 > this.cheerDur) this.cheers.delete(i);
+    this.bounce(now);
+    if (now > this.msgUntil) $('toastMsg').style.opacity = 0;
+    if (idle && !this.finished && this.visited.size === tablePos.length && !this.cheers.size) this.finish();
   },
   finish() {
-    this.state = 'done'; $('toastUI').style.display = 'none'; this.arrows.forEach((a) => { a.visible = false; });
-    const score = TOAST.perTable * tablePos.length;
+    this.finished = true; enterAct(this);
     showResult({
-      title: 'Đi hết các bàn!', score,
+      title: 'Đi hết các bàn!', score: TOAST.perTable * tablePos.length,
       msg: `Bạn đã cụng ly và chúc đủ ${tablePos.length} bàn. Ai cũng nhớ mặt bạn, Ngọc Khánh và Quốc Tuân cảm ơn nhiều lắm!`,
-      again: () => this.enter(), done: () => exitAct(),
+      again: () => { this.visited.clear(); this.finished = false; this.count(); exitAct(); }, done: () => exitAct(),
     });
   },
+  enter() { poseWalker(player.rig, 0, 0, false); },
+  update() { poseWalker(player.rig, 0, 0, false); },
+  exit() { this.shown = null; },
 };
-function quitToast() {
-  if (G.act !== toastAct || toastAct.state === 'done') return;
-  const n = toastAct.visited.size; exitAct();
-  showHint(n ? `Bạn đã chúc ${n} bàn, lúc nào hết mỏi chân thì đi tiếp nhé ♥` : 'Lúc nào hết mỏi chân thì đi mời rượu nhé ♥', 4500);
-}
-$('toastBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (G.act === toastAct) toastAct.cheer(); });
-$('toastQuit').addEventListener('click', (e) => { e.currentTarget.blur(); quitToast(); });
-addEventListener('keydown', (e) => {
-  if (G.act !== toastAct || e.repeat) return;
-  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') { e.preventDefault(); toastAct.cheer(); } else if (e.code === 'Escape') quitToast();
-});
 
 /* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
