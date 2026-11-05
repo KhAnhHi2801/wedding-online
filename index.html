@@ -1808,7 +1808,7 @@ const TOAST_WISHES = [
   'Yêu nhau lắm cắn nhau đau, nhưng cưới rồi thì thương nhau mãi!', 'Hai họ vui vầy, con cháu đề huề!',
 ];
 const toastAct = {
-  near: -1, visited: new Set(), cheers: new Map(), deck: [], arrows: [], cheerDur: 6, built: false, shown: null, msgUntil: 0, finished: false,
+  myT0: -99, near: -1, visited: new Set(), cheers: new Map(), deck: [], arrows: [], cheerDur: 6, built: false, shown: null, msgUntil: 0, finished: false,
   build() {
     this.built = true;
     this.arrows = tablePos.map((p) => {
@@ -1834,7 +1834,7 @@ const toastAct = {
   },
   cheer(i) {
     if (!this.deck.length) this.deck = TOAST_WISHES.slice().sort(() => Math.random() - 0.5);
-    const first = !this.visited.has(i); this.visited.add(i); this.cheers.set(i, performance.now() / 1000); this.count(); if (first) party.add(TOAST.perTable); this.arrows[i].visible = false;
+    const first = !this.visited.has(i); this.visited.add(i); this.cheers.set(i, performance.now() / 1000); this.myT0 = performance.now() / 1000; this.count(); if (first) party.add(TOAST.perTable); this.arrows[i].visible = false;
     const m = $('toastMsg'); m.textContent = `Bàn ${i + 1}: “${this.deck.pop()}”`; m.style.opacity = 1; this.msgUntil = performance.now() / 1000 + 4.5;
     $('hint').style.opacity = 0;                    // lời chúc chiếm chỗ dòng gợi ý
     audio.playSfx('cheers').then((ok) => { if (!ok) audio.clink(); });
@@ -1859,6 +1859,10 @@ const toastAct = {
     }
     for (const [i, t0] of this.cheers) if (now - t0 > this.cheerDur) this.cheers.delete(i);
     this.bounce(now);
+    if (idle && now - this.myT0 < this.cheerDur) {   // người chơi cũng giơ ly và nhún nhảy cùng bàn (đè lên dáng đi của khung hình này)
+      const r = player.rig; r.armL.rotation.x = r.armR.rotation.x = -0.35; r.armL.rotation.z = -2.7; r.armR.rotation.z = 2.7;   // hai tay giơ cao sang hai bên: nhìn từ sau lưng vẫn thấy
+      player.group.position.y = 0.13 * Math.abs(Math.sin((now - this.myT0) * 9));
+    } else if (player.rig) player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
     if (now > this.msgUntil) $('toastMsg').style.opacity = 0;
     if (idle && !this.finished && this.visited.size === tablePos.length && !this.cheers.size) this.finish();
   },
