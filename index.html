@@ -1164,15 +1164,16 @@ function markNpcDirty() { for (const k of ['torso', 'head', 'hair', 'eyes', 'arm
 const KARA = { fall: 2.0, lead: 2.0, perfect: 0.13, good: 0.25, window: 0.38, warn: 0.18, holdSlack: 0.28 };   // cửa sổ chấm rộng, nốt rơi chậm cho dễ bấm
 const LANE_COL = ['#ff6b9d', '#ffd166', '#5ad1ff'], LANE_KEY = ['A', 'S', 'D'];
 const KEY_LANE = { KeyA: 0, ArrowLeft: 0, KeyS: 1, ArrowDown: 1, KeyW: 1, ArrowUp: 1, KeyD: 2, ArrowRight: 2 };
-const WARP = { maxLag: 0.3, step: 0.05, stepSev: 0.12, hold: 1.0, minGap: 0.09, fade: 0.02 };   // lệch nhịp = nhạc bị nhảy lùi so với nốt (giữ nguyên cao độ, không méo tiếng); hết lỗi thì nhảy về khớp
+const WARP = { lagLow: 0.18, lagHigh: 0.28, highAfter: 3, hold: 2.5, minGap: 0.6, errGap: 0.45, fade: 0.04 };   // lệch nhịp = nhạc bị đặt trễ cố định so với nốt (giữ nguyên cao độ); chỉ nhảy khi vào/ra trạng thái lệch, không nhảy theo từng lần chạm sai
 const rh = { g: null, W: 0, H: 0, dpr: 1 };
 
 /* Nhạc là mp3 thật (window.SONG_DATA từ songs-data.js), phát qua chuỗi Web Audio: nguồn → gain → master.
    Nốt chạy theo ĐỒNG HỒ ÂM THANH (pos). "Lệch nhịp" là nhạc thật sự bị đặt lệch so với nốt: mỗi lần chạm sai, nhạc NHẢY LÙI
-   `lag` giây (nguồn mới bắt đầu ở vị trí cũ, trộn mờ 20 ms để không bị tiếng click) — cao độ và âm sắc giữ nguyên, nên nghe là
-   lệch nhịp chứ không phải méo tiếng. Sau `WARP.hold` giây không lỗi thì nhảy tới khớp lại. */
+   `lag` giây (nguồn mới bắt đầu ở vị trí cũ, trộn mờ 40 ms để không bị click) — cao độ và âm sắc giữ nguyên. Nhạc chỉ nhảy khi
+   VÀO trạng thái lệch (lỗi đầu tiên) và khi RA (sau `WARP.hold` giây sạch lỗi); ở giữa giữ trễ cố định, nên nghe là nhạc trễ
+   đều chứ không phải giật. Lỗi dồn dập (≥ `highAfter` lần) thì trễ nhiều hơn, thêm đúng một lần nhảy. */
 const karaokeAct = {
-  state: 'idle', t: 0, timer: 0, pos: 0, lastCt: null, lat: 0, end: 0, song: null, loading: false, mus: null, lag: 0, lagGoal: 0, calm: 0, jumpT: 0, wv: 0, calibMs: 0,
+  state: 'idle', t: 0, timer: 0, pos: 0, lastCt: null, lat: 0, end: 0, song: null, loading: false, mus: null, lag: 0, lagGoal: 0, calm: 0, jumpT: 0, errs: 0, errT: -9, wv: 0, calibMs: 0,
   notes: [], total: 0, counts: [0, 0, 0], combo: 0, bestCombo: 0, pts: 0, q: 0,
   hold: [null, null, null], down: [false, false, false], ptr: new Map(),
   fx: Array.from({ length: 8 }, () => ({ on: false, lane: 0, age: 0, kind: 0 })), fxI: 0, label: { text: '', color: '#fff', age: 9 },
@@ -1234,7 +1235,7 @@ const karaokeAct = {
   reset() {
     this.stopMusic(); this.stopAll(); this.stage();
     this.notes = this.song.chart.map(([t, lane, dur]) => ({ t, lane, dur, st: 0, k: 0 })); this.total = this.notes.length;
-    this.counts = [0, 0, 0]; this.combo = this.bestCombo = this.pts = 0; this.q = 0.8; this.lag = this.lagGoal = this.calm = this.wv = 0; this.jumpT = 9;   // q ban đầu cao: bài mở đầu sạch, chưa méo
+    this.counts = [0, 0, 0]; this.combo = this.bestCombo = this.pts = 0; this.q = 0.8; this.lag = this.lagGoal = this.calm = this.wv = 0; this.jumpT = 9; this.errs = 0; this.errT = -9;   // q ban đầu cao: bài mở đầu sạch, chưa méo
     this.label.age = 9; this.fx.forEach((f) => { f.on = false; });
     this.end = this.song.dur + 0.6;
     crowd.target = 0.1; this.state = 'intro'; this.timer = 3.2; this.t = 0; this.pos = -KARA.lead;
@@ -1244,7 +1245,7 @@ const karaokeAct = {
     this.state = 'play'; this.pos = -KARA.lead; const c = audio.ctx;
     this.lastCt = c && c.state === 'running' ? c.currentTime : null;
     this.lat = c ? clamp((c.outputLatency || 0) + (c.baseLatency || 0), 0, 0.3) : 0;
-    this.lag = this.lagGoal = this.calm = 0; this.jumpT = 9;
+    this.lag = this.lagGoal = this.calm = 0; this.jumpT = 9; this.errs = 0;
     if (c && this.song.buf) this.mus = this.spawn(c.currentTime + KARA.lead, 0, false);
     showHint('Hát nào!', 800);
   },
@@ -1270,11 +1271,12 @@ const karaokeAct = {
     this.killSrc(m, at);
     this.mus = off >= 0 ? this.spawn(at, off, true) : this.spawn(at - off, 0, true);       // chưa tới đoạn đầu bài thì chờ rồi phát từ đầu
   },
-  glitch(sec) {                                     // chạm sai/lỡ nốt: đẩy mục tiêu lệch ra xa thêm (càng sai nhiều càng lệch)
-    this.lagGoal = clamp(this.lagGoal + WARP.step + WARP.stepSev * clamp(sec / 0.45, 0, 1), 0, WARP.maxLag); this.calm = WARP.hold;
+  glitch() {                                        // chạm sai/lỡ nốt: vào (hoặc giữ) trạng thái lệch; hai lỗi cùng một sự kiện chỉ tính một
+    if (this.t - this.errT > WARP.errGap) { this.errs++; this.errT = this.t; }
+    this.lagGoal = this.errs >= WARP.highAfter ? WARP.lagHigh : WARP.lagLow; this.calm = WARP.hold;
   },
   applyWarp(dt) {
-    this.jumpT += dt; if (this.calm > 0) { this.calm -= dt; if (this.calm <= 0) this.lagGoal = 0; }
+    this.jumpT += dt; if (this.calm > 0) { this.calm -= dt; if (this.calm <= 0) { this.lagGoal = 0; this.errs = 0; } }
     if (this.pos > 0.3 && this.jumpT >= WARP.minGap && Math.abs(this.lagGoal - this.lag) >= 0.03) this.jumpTo(this.lagGoal);
     const target = clamp(this.lag / 0.1, 0, 1);
     this.wv += (target - this.wv) * (1 - Math.exp(-12 * dt));
