@@ -995,7 +995,17 @@ function buildCouple() {
     const c = buildCharacter(o, name);
     c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 1.95; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
   }
+  const mom = buildCharacter({ kind: 'aodai', top: 0xc2185b, bottom: 0xfff4e0, arm: 0xc2185b, hair: 0x6b6b6b, bun: true }, 'Mẹ cô dâu');
+  mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = -Math.PI / 2; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 1.95;
+  scene.add(mom.g); couple.push(mom.g); addCircle(MOM.rest.x, MOM.rest.z, 0.4); MOM.g = mom.g; MOM.rig = mom.rig;
+  const env = new THREE.Group();                                  // bao lì xì: nền đỏ, dải và vòng vàng
+  put(env, new THREE.BoxGeometry(0.17, 0.26, 0.025), M(0xd7263d), 0, 0, 0, false, false);
+  put(env, new THREE.BoxGeometry(0.17, 0.07, 0.03), M(0xffd166), 0, 0.09, 0, false, false);
+  put(env, new THREE.CylinderGeometry(0.035, 0.035, 0.035, 12).rotateX(Math.PI / 2), M(0xffd166), 0, -0.02, 0, false, false);
+  env.visible = false; scene.add(env); MOM.env = env;
 }
+/* Mẹ cô dâu: đứng cạnh thảm đỏ, nhận mâm quả rồi lì xì cho người bê tráp (trayAct.giftStep). */
+const MOM = { rest: { x: 2.5, z: -13.9 }, meet: { x: 1.2, z: -13.3 }, g: null, rig: null, env: null };
 const couple = [], coupleRigs = [];                  // [chú rể, cô dâu]: nhóm 3D (ẩn khi camera karaoke ở sau lưng ca sĩ) và khung xương để làm động tác
 
 /* ---- Bàn mâm quả cạnh cổng = điểm bắt đầu hoạt động 1 ---- */
@@ -1050,7 +1060,7 @@ const trayAct = {
     this.reset();
   },
   exit() {
-    audio.stopSfx('bouquetWait', 0.4); player.group.remove(this.tray.group); this.tray.group.visible = false; player.rig.body.rotation.z = 0; player.tag.visible = true; $('bal').style.display = 'none';
+    audio.stopSfx('bouquetWait', 0.4); player.group.remove(this.tray.group); this.tray.group.visible = false; this.resetGift(); player.rig.body.rotation.z = 0; player.tag.visible = true; $('bal').style.display = 'none';
   },
   reset() {
     const { group, items } = this.tray;
@@ -1060,7 +1070,9 @@ const trayAct = {
     this.ph1 = Math.random() * 6.28; this.ph2 = Math.random() * 6.28;
     player.x = 0; player.z = TRAY.z0; player.rot = Math.PI;
     player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;
-    cam.yaw = 0; cam.pitch = 0.58; cam.dist = 6.2;
+    cam.yaw = 0; cam.pitch = 0.58; cam.dist = 6.2; cam.lookY = CFG.camHeight;
+    this.tray.group.visible = true; player.rig.body.rotation.x = 0; player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
+    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = -Math.PI / 2; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
     this.state = 'ready'; this.timer = 1.2; this.setMeter(0, 0); audio.playSfx('bouquetWait', 0.8, true);   // cùng nhạc nền với lúc bắt hoa, lặp suốt lúc bưng
     showHint('Sẵn sàng… giữ thăng bằng nhé!', 1200);
   },
@@ -1080,8 +1092,10 @@ const trayAct = {
     } else if (this.state === 'fallen') {
       this.timer -= dt; this.fallStep(dt); poseWalker(player.rig, 0, 0, false);
       if (this.timer <= 0) this.reset();
+    } else if (this.state === 'gift') {
+      this.giftStep(dt);
     } else if (this.state === 'done') {
-      poseWalker(player.rig, 0, 0, true);
+      poseWalker(player.rig, 0, 0, false);
     }
   },
   runStep(dt) {
@@ -1117,13 +1131,44 @@ const trayAct = {
     });
   },
   finish() {
-    this.state = 'done'; this.th = this.om = 0; this.applyTilt(); $('bal').style.display = 'none'; audio.stopSfx('bouquetWait', 0.6);
+    this.th = this.om = 0; this.applyTilt(); $('bal').style.display = 'none'; audio.stopSfx('bouquetWait', 0.6);
     const stab = 1 - clamp(this.sumAbs / this.nAbs / TRAY.fail, 0, 1);
-    const score = clamp(Math.round(35 + 65 * stab) - 5 * this.fails, 20, 100);   // 20–100: hoàn thành luôn được điểm, rơi chỉ trừ nhẹ
-    party.add(score);
+    this.base = clamp(Math.round(35 + 65 * stab) - 5 * this.fails, 20, 100);   // 20–100: hoàn thành luôn được điểm, rơi chỉ trừ nhẹ
+    this.lixi = Math.round(10 + 20 * stab);                                   // lì xì lấy hên: bê càng vững càng dày (10–30)
+    this.state = 'gift'; this.gt = 0; this.stab = stab;
+  },
+  resetGift() {
+    player.rig.body.rotation.x = 0; player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
+    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = -Math.PI / 2; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
+  },
+  /* Cảnh nhận lì xì (~4,3 s): người chơi quay sang, hạ mâm → mẹ cô dâu bước tới, đưa bao đỏ bằng một tay → nhận bằng hai tay, cúi chào → giơ bao lên khoe. */
+  giftStep(dt) {
+    const t = (this.gt += dt), pr = player.rig, mr = MOM.rig, env = MOM.env, k = (a, b) => clamp((t - a) / (b - a), 0, 1);
+    player.rot = lerp(Math.PI, Math.PI / 2, ease(k(0, 0.7))); player.group.rotation.y = player.rot;
+    const cz = ease(k(0, 1.6)); cam.yaw = lerp(0, 0.2, cz); cam.pitch = lerp(0.58, 0.3, cz); cam.dist = lerp(6.2, 4.0, cz); cam.lookY = lerp(CFG.camHeight, 1.25, cz);   // máy quay sang ngang để thấy hai người nhìn nhau
+    if (t < 0.5) poseWalker(pr, 0, 0, true); else { this.tray.group.visible = false; poseWalker(pr, 0, 0, false); }
+    const w = k(0.5, 1.9); MOM.g.position.x = lerp(MOM.rest.x, MOM.meet.x, ease(w)); MOM.g.position.z = lerp(MOM.rest.z, MOM.meet.z, ease(w));
+    poseWalker(mr, t * 9, w > 0 && w < 1 ? 1 : 0, false);
+    const hand = new THREE.Vector3(MOM.g.position.x - 0.5, 1.0, MOM.g.position.z), mine = new THREE.Vector3(player.x + 0.45, 1.0, player.z);
+    if (t >= 1.9) {
+      env.visible = true; const give = k(2.5, 3.2);
+      mr.armR.rotation.x = -1.4 * (1 - k(3.2, 3.8)); pr.body.rotation.x = 0.28 * Math.sin(Math.PI * k(2.4, 3.8));          // mẹ đưa tay, người chơi cúi nhận
+      pr.armL.rotation.x = pr.armR.rotation.x = -1.45 * k(2.2, 2.7) * (1 - k(3.4, 3.8));
+      if (t < 3.4) { env.position.lerpVectors(hand, mine, ease(give)); env.position.y += Math.sin(Math.PI * give) * 0.08; env.rotation.set(0, Math.PI / 2, 0.2 * give); }
+      else {                                                                                                  // giơ bao lì xì lên khoe
+        const up = ease(k(3.4, 4.1)); env.position.set(mine.x - 0.3, lerp(1.0, 2.15, up), mine.z); env.rotation.set(0, t * 3, 0);
+        pr.armL.rotation.x = pr.armR.rotation.x = -0.35 * up; pr.armL.rotation.z = -2.7 * up; pr.armR.rotation.z = 2.7 * up;
+      }
+    }
+    if (t >= 4.4) this.giftDone();
+  },
+  giftDone() {
+    this.state = 'done'; const score = this.base + this.lixi; party.add(score);
+    const wish = pick(['Lộc đầu may mắn, cả năm bình an nhé con!', 'Cảm ơn con đã bê mâm quả, cô chú vui lắm!', 'Lì xì lấy hên, chúc con sớm gặp duyên lành!', 'Con khéo tay quá, nhà gái mát lòng mát dạ!']);
     showResult({
       title: 'Mâm quả đã tới nơi!', score,
-      msg: score >= 90 ? 'Vững như bàn thạch! Ngọc Khánh và Quốc Tuân mát lòng mát dạ.' : score >= 70 ? 'Khéo tay lắm, họ hàng khen nức nở!' : 'Qua được rồi, ai cũng thở phào!',
+      msg: `Mẹ Ngọc Khánh lì xì cho bạn: “${wish}” (+${this.lixi} Vui lấy hên). ` +
+        (this.base >= 90 ? 'Vững như bàn thạch! Ngọc Khánh và Quốc Tuân mát lòng mát dạ.' : this.base >= 70 ? 'Khéo tay lắm, họ hàng khen nức nở!' : 'Qua được rồi, ai cũng thở phào!'),
       again: () => { this.fails = 0; $('bal').style.display = 'block'; this.reset(); },
       done: () => { exitAct(); showHint('Đứng trước sân khấu để hát karaoke nhé ♪', 6000); },
     });
