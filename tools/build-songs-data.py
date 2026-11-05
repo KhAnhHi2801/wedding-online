@@ -35,6 +35,14 @@ for fname, info in charts.items():
     data = open(path, 'rb').read()
     songs.append({'id': 'song' + str(len(songs) + 1), 'title': info['title'], 'dur': round(mp3_duration(data), 2),
                   'src': 'data:audio/mpeg;base64,' + base64.b64encode(data).decode('ascii'), 'chart': info['chart']})
+# Hiệu ứng âm thanh hoạt động Bắt hoa: khoá → file (index.html gọi audio.playSfx(khoá))
+SFX = {'bouquetWait': 'Chờ để bắt hoa.mp3', 'bouquetCatch': 'Bắt được hoa.mp3', 'bouquetMiss': 'Bắt hụt.mp3'}
+sfx = {}
+for key, fname in SFX.items():
+    path = os.path.join(ROOT, 'songs', fname)
+    if not os.path.exists(path): sys.exit('Thiếu file: ' + path)
+    sfx[key] = 'data:audio/mpeg;base64,' + base64.b64encode(open(path, 'rb').read()).decode('ascii')
 out = os.path.join(ROOT, 'songs-data.js')
-open(out, 'w', encoding='utf-8').write('/* Sinh bởi tools/build-songs-data.py — đừng sửa tay */\nwindow.SONG_DATA = ' + json.dumps(songs, ensure_ascii=False, separators=(',', ':')) + ';\n')
+dump = lambda o: json.dumps(o, ensure_ascii=False, separators=(',', ':'))
+open(out, 'w', encoding='utf-8').write('/* Sinh bởi tools/build-songs-data.py — đừng sửa tay */\nwindow.SONG_DATA = ' + dump(songs) + ';\nwindow.SFX_DATA = ' + dump(sfx) + ';\n')
 print('ghi', out, os.path.getsize(out) // 1024, 'KB;', len(songs), 'bài:', [(s['title'], s['dur'], len(s['chart'])) for s in songs])

@@ -1138,6 +1138,36 @@ const audio = {
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
   },
   clap(vol) { this.noise(0.05, vol, 1500); },
+  /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
+     còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
+  sfxBuf: {}, sfxLive: {},
+  loadSfx(key) {
+    const src = (window.SFX_DATA || {})[key];
+    if (!this.ctx || !src) return Promise.resolve(null);
+    if (!this.sfxBuf[key]) {
+      const bin = atob(src.slice(src.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).catch(() => null);
+    }
+    return this.sfxBuf[key];
+  },
+  async playSfx(key, vol = 1) {
+    this.stopSfx(key, 0); const token = {}; this.sfxLive[key] = token;
+    const buf = await this.loadSfx(key);
+    if (!buf || this.sfxLive[key] !== token) return false;
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
+    g.gain.value = vol; s.buffer = buf; s.connect(g); g.connect(this.master); s.start();
+    token.src = s; token.g = g; s.onended = () => { try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };
+    return true;
+  },
+  stopSfx(key, fade = 0.25) {                       // mờ dần rồi dừng; fade = 0 là dừng ngay
+    const t = this.sfxLive[key]; delete this.sfxLive[key];
+    if (!t || !t.src) return;
+    try {
+      const at = this.ctx.currentTime; t.g.gain.cancelScheduledValues(at); t.g.gain.setValueAtTime(t.g.gain.value, at);
+      t.g.gain.linearRampToValueAtTime(0, at + fade); t.src.stop(at + fade + 0.02);
+    } catch { /* đã dừng */ }
+  },
 };
 $('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
 
@@ -1484,10 +1514,11 @@ const bouquetAct = {
     couple.forEach((c) => { c.visible = true; }); player.tag.visible = false;
     if (!this.mesh) { this.mesh = makeBouquet(); scene.add(this.mesh); }
     this.catchers = []; npcs.forEach((n, i) => { if (n.reserve && this.catchers.length < BOUQ.catchers) this.catchers.push(i); });
+    ['bouquetWait', 'bouquetCatch', 'bouquetMiss'].forEach((k) => audio.loadSfx(k));   // giải mã sẵn để tiếng vào đúng lúc
     this.reset();
   },
   exit() {
-    $('catchUI').style.display = 'none'; this.mesh.visible = false;
+    this.stopSfx(); $('catchUI').style.display = 'none'; this.mesh.visible = false;
     for (const i of this.catchers) { const n = npcs[i]; n.vis = 0; n.jump = 0; n.up = 0; placeNpc(i, 0, 0, false); }
     markNpcDirty(); couple[1].rotation.y = -0.15; poseWalker(coupleRigs[1], 0, 0, false);
     player.tag.visible = true; player.group.position.y = 0; player.rig.body.position.y = 0; crowd.target = 0;
@@ -1499,7 +1530,9 @@ const bouquetAct = {
     this.winner = -1; this.judged = false; this.result = ''; this.state = 'intro'; this.t = 0; this.ft = 0; this.mesh.visible = false; this.mesh.scale.setScalar(1.6);
     crowd.target = 0.15; $('catchUI').style.display = 'block'; $('cRing').style.opacity = 0;
     $('catchMsg').textContent = 'Ngọc Khánh sắp ném hoa… chuẩn bị nhé!';
+    this.stopSfx(0); audio.playSfx('bouquetWait');   // nhạc chờ chạy suốt lúc chuẩn bị và lúc hoa bay
   },
+  stopSfx(fade = 0.25) { ['bouquetWait', 'bouquetCatch', 'bouquetMiss'].forEach((k) => audio.stopSfx(k, fade)); },
   launch() {
     this.state = 'flight'; this.ft = 0; this.judged = false; this.mesh.visible = true; this.mesh.position.copy(BOUQ_START);
     audio.noise(0.3, 0.1, 900); $('cRing').style.opacity = 1; $('catchMsg').textContent = 'Chạm khi vòng hồng khít vòng vàng!';
@@ -1511,14 +1544,15 @@ const bouquetAct = {
   },
   resolve(res) {
     this.judged = true; this.result = res; this.state = 'resolve'; this.t = 0; this.from.copy(this.mesh.position);
-    $('cRing').style.opacity = 0; crowd.target = 0.9;
+    $('cRing').style.opacity = 0; crowd.target = 0.9; audio.stopSfx('bouquetWait', 0.15);
     if (res === 'miss') {                           // hụt: NPC đứng gần chỗ hoa rơi nhất bắt được
       let best = this.catchers[0], bd = 1e9;
       for (const i of this.catchers) { const d = Math.hypot(npcs[i].x - BOUQ_LAND.x, npcs[i].z - BOUQ_LAND.z); if (d < bd) { bd = d; best = i; } }
       this.winner = best; this.comfort = COMFORT[Math.floor(Math.random() * COMFORT.length)];
-      audio.tone(196, 0.35, 'triangle', 0.14); $('catchMsg').textContent = 'Ối, hụt mất rồi!';
+      audio.playSfx('bouquetMiss').then((ok) => { if (!ok) audio.tone(196, 0.35, 'triangle', 0.14); });   // chưa nạp được mp3 thì dùng tiếng tổng hợp
+      $('catchMsg').textContent = 'Ối, hụt mất rồi!';
     } else {
-      audio.tone(880, 0.25, 'triangle', 0.16); audio.tone(1318, 0.4, 'triangle', 0.14, 0.12);
+      audio.playSfx('bouquetCatch').then((ok) => { if (!ok) { audio.tone(880, 0.25, 'triangle', 0.16); audio.tone(1318, 0.4, 'triangle', 0.14, 0.12); } });
       $('catchMsg').textContent = res === 'perfect' ? 'Chuẩn quá!' : 'Bắt được rồi!';
     }
   },
