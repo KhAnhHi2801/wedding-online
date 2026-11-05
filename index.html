@@ -1195,6 +1195,7 @@ const audio = {
   /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
   sfxBuf: {}, sfxLive: {},
+  sfxTrimEnd: { cheers: 1.5 },                      // giây cắt bỏ ở cuối mỗi file khi phát (không sửa file gốc)
   loadSfx(key) {
     const src = (window.SFX_DATA || {})[key];
     if (!this.ctx || !src) return Promise.resolve(null);
@@ -1204,6 +1205,7 @@ const audio = {
       this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).then((b) => {
         const d = b.getChannelData(0); let f = 0; while (f < d.length && Math.abs(d[f]) < 0.01) f++;
         b.lead = Math.max(0, f / b.sampleRate - 0.02);          // đoạn im lặng đầu file: bỏ qua để tiếng vào ngay
+        b.len = Math.max(0.3, b.duration - b.lead - (this.sfxTrimEnd[key] || 0));   // độ dài thực sự được phát
         return b;
       }).catch(() => null);
     }
@@ -1214,7 +1216,12 @@ const audio = {
     const buf = await this.loadSfx(key);
     if (!buf || this.sfxLive[key] !== token) return false;
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
-    g.gain.value = vol; s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master); s.start(0, buf.lead || 0);
+    g.gain.value = vol; s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master);
+    if (loop) s.start(0, buf.lead || 0);
+    else {                                          // phát đoạn [lead, lead+len], mờ 80 ms ở cuối để không bị tạch khi cắt
+      const at = this.ctx.currentTime, end = at + buf.len; s.start(at, buf.lead || 0, buf.len);
+      g.gain.setValueAtTime(vol, Math.max(at, end - 0.08)); g.gain.linearRampToValueAtTime(0, end);
+    }
     token.src = s; token.g = g; s.onended = () => { try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };
     return true;
   },
@@ -1815,7 +1822,7 @@ const toastAct = {
       const m = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.42, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0x7dffb0 }));
       m.position.set(p.x, 2.6, p.z); scene.add(m); return m;
     });
-    audio.loadSfx('cheers').then((buf) => { if (buf) this.cheerDur = clamp(buf.duration - (buf.lead || 0), 1.6, 7); });
+    audio.loadSfx('cheers').then((buf) => { if (buf) this.cheerDur = clamp(buf.len, 1.6, 7); });
     this.count();
   },
   count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn · lại gần bàn rồi bấm nút chúc rượu`; },
