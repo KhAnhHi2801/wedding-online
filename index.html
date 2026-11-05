@@ -79,6 +79,8 @@
     border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(11,16,48,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
   #rhythm { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); transform:translateX(-50%); width:min(90vw,360px); height:min(50vh,400px);
     display:none; pointer-events:auto; touch-action:none; }
+  #karaQuit { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px + min(50vh,400px) + 10px); transform:translateX(-50%); display:none; pointer-events:auto;
+    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
   #songPick { position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:16px; pointer-events:auto; background:rgba(0,0,0,.35); }
   #songPick .card { padding:18px; }
   #songPick h2 { margin:0 0 4px; color:var(--gold); }
@@ -133,6 +135,7 @@
   <div id="fps"></div>
   <button id="mute" type="button" aria-label="Bật/tắt tiếng">🔊</button>
   <canvas id="rhythm"></canvas>
+  <button id="karaQuit" type="button">Ngại quá, không hát nữa</button>
   <div id="party"><span>Không khí tiệc</span><div class="bar"><div id="partyFill"></div></div></div>
   <div id="bal">
     <div id="balTitle">Giữ mâm quả thăng bằng!</div>
@@ -154,7 +157,7 @@
     <div id="songList"></div>
     <div id="calibRow"><span>Chỉnh cho khớp tiếng</span><button id="calibMinus" type="button" aria-label="Giảm độ trễ">−</button><b id="calibVal">0 ms</b><button id="calibPlus" type="button" aria-label="Tăng độ trễ">+</button></div>
     <small id="calibHint">Nốt tới vòng rồi mới nghe tiếng? Bấm +. Nghe tiếng trước khi nốt tới? Bấm −. Tai nghe Bluetooth thường cần chỉnh.</small>
-    <button id="songBack" type="button">Thôi, để sau</button>
+    <button id="songBack" type="button">Ngại quá, để lúc khác nhé</button>
   </div></div>
   <div id="joy"><div id="knob"></div></div>
 </div>
@@ -1166,6 +1169,7 @@ const LANE_COL = ['#ff6b9d', '#ffd166', '#5ad1ff'], LANE_KEY = ['A', 'S', 'D'];
 const KEY_LANE = { KeyA: 0, ArrowLeft: 0, KeyS: 1, ArrowDown: 1, KeyW: 1, ArrowUp: 1, KeyD: 2, ArrowRight: 2 };
 const WAIT = { freeze: 0.12, fade: 0.03 };   // nốt qua vạch quá `freeze` giây mà chưa bấm thì nốt và nhạc dừng chờ; fade = mờ dần/hiện dần tiếng khi dừng/tiếp tục
 const rh = { g: null, W: 0, H: 0, dpr: 1 };
+function setRhythm(on) { $('rhythm').style.display = on ? 'block' : 'none'; $('karaQuit').style.display = on ? 'block' : 'none'; }   // khung chơi + nút thoát hiện cùng lúc
 
 /* Nhạc là mp3 thật (window.SONG_DATA từ songs-data.js), phát qua Web Audio: nguồn → gain → master.
    Chế độ CHỜ BẤM: nốt chạy theo đồng hồ âm thanh (pos) cùng với nhạc. Nốt nào tới vạch mà chưa bấm (quá WAIT.freeze) thì
@@ -1184,7 +1188,7 @@ const karaokeAct = {
   },
   exit() {
     this.stopMusic(); this.stopAll();
-    $('rhythm').style.display = 'none'; $('songPick').style.display = 'none';
+    setRhythm(false); $('songPick').style.display = 'none';
     player.tag.visible = true; couple.forEach((c) => { c.visible = true; }); crowd.silent = false; player.rig.body.rotation.z = 0; player.rig.body.position.y = 0;
     player.x = 0; player.z = -13.2; player.rot = 0; player.group.position.set(0, 0, -13.2); crowd.target = 0;
   },
@@ -1194,7 +1198,7 @@ const karaokeAct = {
   },
   openPick() {
     this.stopMusic(); this.stopAll(); this.state = 'pick'; this.t = 0; crowd.target = 0;
-    $('rhythm').style.display = 'none';
+    setRhythm(false);
     const list = $('songList'); list.textContent = '';
     const songs = window.SONG_DATA || [];
     if (!songs.length) { const p = document.createElement('p'); p.textContent = 'Chưa có bài nào để hát, bạn quay lại sau nhé!'; list.append(p); }
@@ -1218,7 +1222,7 @@ const karaokeAct = {
     } catch { showHint('Bài này chưa mở được, bạn chọn bài khác nhé', 3000); }
     this.loading = false; btn.firstChild.textContent = old; btn.disabled = false;
     if (G.act !== this) return;                     // người chơi đã thoát trong lúc tải
-    this.song = song; $('songPick').style.display = 'none'; $('rhythm').style.display = 'block'; this.resize();
+    this.song = song; $('songPick').style.display = 'none'; setRhythm(true); this.resize();
     showHint(isTouch ? 'Nốt tới vòng thì chạm vào. Nốt dài thì giữ tay đến hết nhé!' : 'Nốt tới vòng thì bấm A, S, D hoặc chạm chuột vào làn. Nốt dài thì giữ đến hết nhé!', 5000);
     this.reset();
   },
@@ -1344,12 +1348,12 @@ const karaokeAct = {
   },
   showScore() {
     const ratio = this.pts / (3 * this.total), score = clamp(Math.round(20 + 80 * ratio), 20, 100), [p, g, m] = this.counts;
-    party.add(score); $('rhythm').style.display = 'none';
+    party.add(score); setRhythm(false);
     showResult({
       title: ratio >= 0.85 ? 'Giọng ca của tiệc!' : 'Bài hát kết thúc!', score,
       msg: `${this.song.title}: ${p} nốt cháy quá, ${g} nốt được, ${m} nốt lạc nhịp. Chuỗi đúng dài nhất của bạn là ${this.bestCombo}. ` +
         (ratio >= 0.85 ? 'Cả rạp đòi hát thêm bài nữa!' : ratio >= 0.55 ? 'Bà con vỗ tay rần rần!' : 'Hơi lạc nhịp nhưng vui là chính!'),
-      again: () => { $('rhythm').style.display = 'block'; this.resize(); this.reset(); },
+      again: () => { setRhythm(true); this.resize(); this.reset(); },
       pick: () => this.openPick(),
       done: () => exitAct(),
     });
@@ -1424,6 +1428,12 @@ document.addEventListener('visibilitychange', () => {   // tab ẩn: nhạc dừ
   if (document.hidden) k.pauseMusic(); else k.skipDt = true;
 });
 $('songBack').addEventListener('click', () => { if (G.act === karaokeAct) exitAct(); });
+function quitKaraoke() {                            // thoát giữa bài: dừng nhạc, quay lại trước sân khấu, không tính điểm
+  if (G.act !== karaokeAct || !['intro', 'play'].includes(karaokeAct.state)) return;
+  exitAct(); showHint('Ngại quá thì thôi, lúc nào hứng hát tiếp nhé ♪', 4000);
+}
+$('karaQuit').addEventListener('click', (e) => { e.currentTarget.blur(); quitKaraoke(); });
+addEventListener('keydown', (e) => { if (e.code === 'Escape') quitKaraoke(); });
 $('calibMinus').addEventListener('click', () => karaokeAct.nudgeCalib(-20));
 $('calibPlus').addEventListener('click', () => karaokeAct.nudgeCalib(20));
 // Nhấn xuống = tap/bắt đầu giữ; nhả = kết thúc giữ. Mỗi ngón (pointerId) gắn với một làn.
