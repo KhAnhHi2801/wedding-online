@@ -1035,13 +1035,13 @@ const trayAct = {
       this.tray = makeTray(); this.droppers = [this.tray.group, ...this.tray.items];
       this.vel = this.droppers.map(() => new THREE.Vector3()); this.spin = this.droppers.map(() => new THREE.Vector3());
     }
-    this.tray.group.visible = true; this.fails = 0; enableTilt(); player.tag.visible = false;   // bảng tên che mâm
+    audio.loadSfx('bouquetWait'); this.tray.group.visible = true; this.fails = 0; enableTilt(); player.tag.visible = false;   // bảng tên che mâm
     $('bal').style.display = 'block';
     $('balHint').textContent = isTouch ? 'Nghiêng điện thoại hoặc vuốt ngón tay sang trái, sang phải' : 'Giữ chuột kéo sang trái, sang phải, hoặc bấm phím A, D';
     this.reset();
   },
   exit() {
-    player.group.remove(this.tray.group); this.tray.group.visible = false; player.rig.body.rotation.z = 0; player.tag.visible = true; $('bal').style.display = 'none';
+    audio.stopSfx('bouquetWait', 0.4); player.group.remove(this.tray.group); this.tray.group.visible = false; player.rig.body.rotation.z = 0; player.tag.visible = true; $('bal').style.display = 'none';
   },
   reset() {
     const { group, items } = this.tray;
@@ -1052,7 +1052,7 @@ const trayAct = {
     player.x = 0; player.z = TRAY.z0; player.rot = Math.PI;
     player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;
     cam.yaw = 0; cam.pitch = 0.58; cam.dist = 6.2;
-    this.state = 'ready'; this.timer = 1.2; this.setMeter(0, 0);
+    this.state = 'ready'; this.timer = 1.2; this.setMeter(0, 0); audio.playSfx('bouquetWait', 0.8, true);   // cùng nhạc nền với lúc bắt hoa, lặp suốt lúc bưng
     showHint('Sẵn sàng… giữ thăng bằng nhé!', 1200);
   },
   setMeter(th, prog) {
@@ -1108,7 +1108,7 @@ const trayAct = {
     });
   },
   finish() {
-    this.state = 'done'; this.th = this.om = 0; this.applyTilt(); $('bal').style.display = 'none';
+    this.state = 'done'; this.th = this.om = 0; this.applyTilt(); $('bal').style.display = 'none'; audio.stopSfx('bouquetWait', 0.6);
     const stab = 1 - clamp(this.sumAbs / this.nAbs / TRAY.fail, 0, 1);
     const score = clamp(Math.round(35 + 65 * stab) - 5 * this.fails, 20, 100);   // 20–100: hoàn thành luôn được điểm, rơi chỉ trừ nhẹ
     party.add(score);
@@ -1135,6 +1135,13 @@ const audio = {
       const n = this.ctx.sampleRate >> 1, b = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = b.getChannelData(0);
       for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
       this.noiseBuf = b;
+      // Bộ đệm riêng cho tiếng rót: nhiễu mịn 2 s, hai đầu trộn chéo nên lặp không bị "tạch" ở mối nối
+      const L = this.ctx.sampleRate * 2, X = this.ctx.sampleRate >> 4, raw = new Float32Array(L + X);
+      let lp = 0; for (let i = 0; i < raw.length; i++) { lp += (Math.random() * 2 - 1 - lp) * 0.35; raw[i] = lp; }
+      const pb = this.ctx.createBuffer(1, L, this.ctx.sampleRate), pd = pb.getChannelData(0);
+      for (let i = 0; i < L; i++) pd[i] = raw[i];
+      for (let i = 0; i < X; i++) { const w = i / X; pd[i] = raw[i] * w + raw[L + i] * (1 - w); }
+      this.pourBuf = pb;
     } catch { this.ctx = null; }
   },
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
@@ -1162,16 +1169,16 @@ const audio = {
   },
   clap(vol) { this.noise(0.05, vol, 1500); },
   startPour() {                                     // tiếng nước rót: nhiễu lọc dải, cao dần theo mực nước (setPour)
-    if (!this.ctx || !this.noiseBuf) return null;
+    if (!this.ctx || !this.pourBuf) return null;
     const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = this.noiseBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 1.2; g.gain.value = 0;
-    g.gain.setTargetAtTime(0.18, c.currentTime, 0.05); s.connect(f); f.connect(g); g.connect(this.master); s.start();
+    s.buffer = this.pourBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 0.8; g.gain.value = 0;
+    g.gain.setTargetAtTime(0.5, c.currentTime, 0.08); s.connect(f); f.connect(g); g.connect(this.master); s.start();
     return { s, f, g };
   },
-  setPour(h, level) { if (h) h.f.frequency.setTargetAtTime(1200 + 2200 * Math.min(level, 1.1), this.ctx.currentTime, 0.05); },
+  setPour(h, level) { if (h) h.f.frequency.setTargetAtTime(1200 + 2200 * Math.min(level, 1.1), this.ctx.currentTime, 0.12); },
   stopPour(h) {
-    if (!h) return; const c = this.ctx; h.g.gain.setTargetAtTime(0, c.currentTime, 0.04);
-    try { h.s.stop(c.currentTime + 0.3); } catch { /* đã dừng */ }
+    if (!h) return; const c = this.ctx; h.g.gain.setTargetAtTime(0, c.currentTime, 0.06);
+    try { h.s.stop(c.currentTime + 0.4); } catch { /* đã dừng */ }
     setTimeout(() => { try { h.s.disconnect(); h.f.disconnect(); h.g.disconnect(); } catch { /* đã gỡ */ } }, 500);
   },
   clink(vol = 1) { this.tone(2093, 0.28, 'triangle', 0.1 * vol); this.tone(3136, 0.3, 'triangle', 0.06 * vol, 0.03); },
@@ -1189,12 +1196,12 @@ const audio = {
     }
     return this.sfxBuf[key];
   },
-  async playSfx(key, vol = 1) {
+  async playSfx(key, vol = 1, loop = false) {
     this.stopSfx(key, 0); const token = {}; this.sfxLive[key] = token;
     const buf = await this.loadSfx(key);
     if (!buf || this.sfxLive[key] !== token) return false;
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
-    g.gain.value = vol; s.buffer = buf; s.connect(g); g.connect(this.master); s.start();
+    g.gain.value = vol; s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master); s.start();
     token.src = s; token.g = g; s.onended = () => { try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };
     return true;
   },
@@ -1695,7 +1702,7 @@ const pourAct = {
     this.reset();
   },
   exit() {
-    audio.stopPour(this.snd); this.snd = null; this.held = false; $('pourUI').style.display = 'none'; this.fxGroup.visible = false;
+    audio.stopPour(this.snd); this.snd = null; crowd.silent = false; this.held = false; $('pourUI').style.display = 'none'; this.fxGroup.visible = false;
     player.tag.visible = true; player.group.position.y = 0; player.rig.body.position.y = 0; crowd.target = 0;
   },
   reset() {
@@ -1715,11 +1722,11 @@ const pourAct = {
   setGauge() { $('pourFill').style.height = Math.min(100, this.level / 1.15 * 100) + '%'; },
   hold(on) {
     $('pourBtn').classList.toggle('on', on); this.held = on;
-    if (on && this.state === 'ready') { this.state = 'pour'; this.holdT = 0; this.snd = audio.startPour(); $('pourMsg').textContent = 'Đang rót… thả ra khi nước lên vạch xanh!'; }
+    if (on && this.state === 'ready') { this.state = 'pour'; this.holdT = 0; this.snd = audio.startPour(); crowd.silent = true; $('pourMsg').textContent = 'Đang rót… thả ra khi nước lên vạch xanh!'; }
     else if (!on && this.state === 'pour') this.judge(this.spilled ? 'spill' : this.level >= POUR.perfect ? 'perfect' : this.level >= POUR.low ? 'good' : 'low');
   },
   judge(kind) {
-    audio.stopPour(this.snd); this.snd = null; this.results.push(kind); this.state = 'settle'; this.t = 0; this.stream.visible = false;
+    audio.stopPour(this.snd); this.snd = null; crowd.silent = false; this.results.push(kind); this.state = 'settle'; this.t = 0; this.stream.visible = false;
     $('pourMsg').textContent = pick(POUR_TXT[kind]);
     if (kind === 'spill') { audio.laugh(); crowd.target = 1; } else if (kind === 'perfect') { audio.clink(); crowd.target = 0.7; } else if (kind === 'good') { audio.clink(0.6); crowd.target = 0.4; } else crowd.target = 0.2;
   },
