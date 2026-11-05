@@ -52,7 +52,7 @@
   #party { position:absolute; top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left)); width:min(44vw,190px); font-size:11.5px; }
   #party .bar { height:12px; margin-top:3px; border-radius:99px; background:rgba(255,255,255,.18); border:1px solid rgba(255,209,102,.45); overflow:hidden; }
   #partyFill { height:100%; width:0; background:linear-gradient(90deg,#ff7eb6,#ffd166); transition:width .8s; }
-  #actBtn { position:absolute; right:max(18px,env(safe-area-inset-right)); bottom:max(36px,env(safe-area-inset-bottom)); display:none; pointer-events:auto;
+  #actBtn, #toastBtn { position:absolute; right:max(18px,env(safe-area-inset-right)); bottom:max(36px,env(safe-area-inset-bottom)); display:none; pointer-events:auto;
     padding:18px 26px; font-size:20px; font-weight:800; border:0; border-radius:999px; color:#4a0d1a; cursor:pointer;
     background:linear-gradient(180deg,#ffe28a,#ffb703); box-shadow:0 6px 20px rgba(0,0,0,.45); animation:pulse 1.2s infinite; touch-action:manipulation; }
   @keyframes pulse { 50% { transform:scale(1.06); } }
@@ -177,6 +177,7 @@
   <div id="toastUI">
     <div id="toastCount"></div>
     <div id="toastMsg"></div>
+    <button id="toastBtn" type="button">Chúc rượu</button>
   </div>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
@@ -1795,8 +1796,8 @@ $('pourQuit').addEventListener('click', (e) => { e.currentTarget.blur(); quitPou
 
 /* =====================================================================
    17. HOẠT ĐỘNG 5: ĐI MỜI RƯỢU (chạy nền, không cần bật)
-   Đi lại gần bàn nào lần đầu thì tự cụng ly: nghe tiếng "dzô", hiện lời chúc, chỉ người ngồi bàn đó nhảy.
-   Người chơi vẫn đi tiếp được trong lúc đó. Đủ hết các bàn thì hiện bảng danh hiệu (lúc đó toastAct mới chiếm quyền như một hoạt động).
+   Đi lại gần bàn nào thì hiện nút "Chúc rượu bàn N"; bấm xong mới nghe tiếng "dzô", hiện lời chúc, chỉ người ngồi bàn đó nhảy.
+   Người chơi vẫn đi tiếp được trong lúc đó; điểm chỉ tính lần chúc đầu của mỗi bàn. Đủ hết các bàn thì hiện bảng danh hiệu (lúc đó toastAct mới chiếm quyền như một hoạt động).
    ===================================================================== */
 const TOAST = { reach: 3.5, perTable: 10 };
 const TOAST_WISHES = [
@@ -1807,7 +1808,7 @@ const TOAST_WISHES = [
   'Yêu nhau lắm cắn nhau đau, nhưng cưới rồi thì thương nhau mãi!', 'Hai họ vui vầy, con cháu đề huề!',
 ];
 const toastAct = {
-  visited: new Set(), cheers: new Map(), deck: [], arrows: [], cheerDur: 6, built: false, shown: null, msgUntil: 0, finished: false,
+  near: -1, visited: new Set(), cheers: new Map(), deck: [], arrows: [], cheerDur: 6, built: false, shown: null, msgUntil: 0, finished: false,
   build() {
     this.built = true;
     this.arrows = tablePos.map((p) => {
@@ -1817,10 +1818,23 @@ const toastAct = {
     audio.loadSfx('cheers').then((buf) => { if (buf) this.cheerDur = clamp(buf.duration - (buf.lead || 0), 1.6, 7); });
     this.count();
   },
-  count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn · lại gần bàn để cụng ly`; },
+  count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn · lại gần bàn rồi bấm nút chúc rượu`; },
+  nearest() {
+    let best = -1, bd = TOAST.reach;
+    tablePos.forEach((p, i) => { const d = Math.hypot(player.x - p.x, player.z - p.z); if (d < bd) { bd = d; best = i; } });
+    return best;
+  },
+  setBtn(i) {                                      // i < 0: ẩn nút. Đang có nút của hoạt động khác (nearSpot) thì nhường chỗ.
+    if (i === this.near) return; this.near = i; const b = $('toastBtn');
+    b.style.display = i < 0 ? 'none' : 'block'; if (i >= 0) b.textContent = (this.visited.has(i) ? 'Chúc lại bàn ' : 'Chúc rượu bàn ') + (i + 1);
+  },
+  press() {
+    const i = this.near; if (i < 0 || G.act || this.cheers.has(i)) return;
+    this.cheer(i); this.setBtn(-1);
+  },
   cheer(i) {
     if (!this.deck.length) this.deck = TOAST_WISHES.slice().sort(() => Math.random() - 0.5);
-    this.visited.add(i); this.cheers.set(i, performance.now() / 1000); this.count(); party.add(TOAST.perTable);
+    const first = !this.visited.has(i); this.visited.add(i); this.cheers.set(i, performance.now() / 1000); this.count(); if (first) party.add(TOAST.perTable); this.arrows[i].visible = false;
     const m = $('toastMsg'); m.textContent = `Bàn ${i + 1}: “${this.deck.pop()}”`; m.style.opacity = 1; this.msgUntil = performance.now() / 1000 + 4.5;
     $('hint').style.opacity = 0;                    // lời chúc chiếm chỗ dòng gợi ý
     audio.playSfx('cheers').then((ok) => { if (!ok) audio.clink(); });
@@ -1837,10 +1851,10 @@ const toastAct = {
   tick() {
     if (!this.built) this.build();
     const idle = !G.act, now = performance.now() / 1000;
-    if (idle !== this.shown) { this.shown = idle; $('toastUI').style.display = idle ? 'block' : 'none'; this.arrows.forEach((a, i) => { a.visible = idle && !this.visited.has(i); }); }
+    if (idle !== this.shown) { this.shown = idle; this.setBtn(-1); $('toastUI').style.display = idle ? 'block' : 'none'; this.arrows.forEach((a, i) => { a.visible = idle && !this.visited.has(i); }); }
     if (G.act && G.act !== this) this.cheers.clear();             // vào hoạt động khác: cả bàn ngồi xuống
     else if (idle) {
-      tablePos.forEach((p, i) => { if (!this.visited.has(i) && Math.hypot(player.x - p.x, player.z - p.z) < TOAST.reach) { this.cheer(i); this.arrows[i].visible = false; } });
+      const n = this.nearest(); this.setBtn(nearSpot || (n >= 0 && this.cheers.has(n)) ? -1 : n);
       this.arrows.forEach((a) => { if (a.visible) { a.position.y = 2.6 + Math.sin(now * 3) * 0.12; a.rotation.y = now * 2; } });
     }
     for (const [i, t0] of this.cheers) if (now - t0 > this.cheerDur) this.cheers.delete(i);
@@ -1860,6 +1874,11 @@ const toastAct = {
   update() { poseWalker(player.rig, 0, 0, false); },
   exit() { this.shown = null; },
 };
+$('toastBtn').addEventListener('click', (e) => { e.currentTarget.blur(); toastAct.press(); });
+addEventListener('keydown', (e) => {
+  if (!G.started || G.act || nearSpot || e.repeat || toastAct.near < 0 || e.target instanceof HTMLInputElement) return;
+  if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); toastAct.press(); }
+});
 
 /* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
