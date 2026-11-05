@@ -1957,6 +1957,14 @@ const store = {
 };
 G.outfit = clamp(parseInt(store.get('outfit', '0'), 10) || 0, 0, OUTFITS.length - 1);
 $('nameIn').value = store.get('name', '');
+// Thiệp mời gắn ?to=Tên khách vào link: điền sẵn tên và chào đúng người (khách vẫn sửa được ô tên)
+const invitedName = (() => {
+  try { return (new URLSearchParams(location.search).get('to') || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16); } catch { return ''; }
+})();
+if (invitedName) {
+  $('nameIn').value = invitedName;
+  document.querySelector('#splash .sub').textContent = 'Mời ' + invitedName + ' vào dự tiệc cưới ♥';   // textContent: tên từ URL không thể chèn HTML
+}
 
 const wrap = $('outfits');
 OUTFITS.forEach((o, i) => {
