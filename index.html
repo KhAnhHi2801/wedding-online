@@ -1207,7 +1207,11 @@ const audio = {
     if (!this.sfxBuf[key]) {
       const bin = atob(src.slice(src.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).catch(() => null);
+      this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).then((b) => {
+        const d = b.getChannelData(0); let f = 0; while (f < d.length && Math.abs(d[f]) < 0.01) f++;
+        b.lead = Math.max(0, f / b.sampleRate - 0.02);          // đoạn im lặng đầu file: bỏ qua để tiếng vào ngay
+        return b;
+      }).catch(() => null);
     }
     return this.sfxBuf[key];
   },
@@ -1216,7 +1220,7 @@ const audio = {
     const buf = await this.loadSfx(key);
     if (!buf || this.sfxLive[key] !== token) return false;
     const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
-    g.gain.value = vol; s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master); s.start();
+    g.gain.value = vol; s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master); s.start(0, buf.lead || 0);
     token.src = s; token.g = g; s.onended = () => { try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };
     return true;
   },
@@ -1854,7 +1858,7 @@ const toastAct = {
     if (!this.deck.length) this.deck = TOAST_WISHES.slice().sort(() => Math.random() - 0.5);
     const first = !this.visited.has(i); this.visited.add(i);
     const m = $('toastMsg'); m.textContent = `Bạn chúc bàn ${i + 1}: “${this.deck.pop()}”`; m.style.opacity = 1;
-    audio.loadSfx('cheers').then((buf) => { this.cheerDur = buf ? clamp(buf.duration, 1.6, 3.5) : TOAST.bounce; });
+    audio.loadSfx('cheers').then((buf) => { this.cheerDur = buf ? clamp(buf.duration - (buf.lead || 0), 1.6, 7) : TOAST.bounce; });
     audio.playSfx('cheers').then((ok) => { if (!ok) audio.clink(); });
     if (first) { party.add(TOAST.perTable); this.count(); }
   },
@@ -1923,6 +1927,7 @@ function enterParty() {
   G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
   store.set('name', $('nameIn').value.trim()); store.set('outfit', G.outfit);
   audio.init();                                     // cú chạm này mở khoá âm thanh
+  Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k), 400 + i * 600));   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
   buildPlayer(OUTFITS[G.outfit], G.name);
   cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
   G.started = true;
