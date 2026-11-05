@@ -1008,7 +1008,7 @@ function buildCouple() {
     c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 2.02; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
   }
   const mom = buildCharacter({ kind: 'aodai', top: 0xc2185b, bottom: 0xfff4e0, arm: 0xc2185b, hair: 0x6b6b6b, bun: true }, 'Mẹ cô dâu');
-  mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = -Math.PI / 2; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 2.02;
+  mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = MOM.restRot; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 2.02;
   scene.add(mom.g); couple.push(mom.g); addCircle(MOM.rest.x, MOM.rest.z, 0.4); MOM.g = mom.g; MOM.rig = mom.rig;
   const env = new THREE.Group();                                  // bao lì xì: nền đỏ, dải và vòng vàng
   put(env, new THREE.BoxGeometry(0.17, 0.26, 0.025), M(0xd7263d), 0, 0, 0, false, false);
@@ -1017,7 +1017,7 @@ function buildCouple() {
   env.visible = false; scene.add(env); MOM.env = env;
 }
 /* Mẹ cô dâu: đứng cạnh thảm đỏ, nhận mâm quả rồi lì xì cho người bê tráp (trayAct.giftStep). */
-const MOM = { rest: { x: 2.5, z: -13.9 }, meet: { x: 1.2, z: -13.3 }, g: null, rig: null, env: null };
+const MOM = { restRot: -Math.PI / 4, rest: { x: 2.5, z: -13.9 }, meet: { x: 1.2, z: -13.3 }, g: null, rig: null, env: null };
 const couple = [], coupleRigs = [];                  // [chú rể, cô dâu]: nhóm 3D (ẩn khi camera karaoke ở sau lưng ca sĩ) và khung xương để làm động tác
 
 /* ---- Bàn mâm quả cạnh cổng = điểm bắt đầu hoạt động 1 ---- */
@@ -1084,7 +1084,7 @@ const trayAct = {
     player.group.position.set(player.x, 0, player.z); player.group.rotation.y = player.rot;
     cam.yaw = 0; cam.pitch = 0.58; cam.dist = 6.2; cam.lookY = CFG.camHeight;
     this.tray.group.visible = true; player.rig.body.rotation.x = 0; player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
-    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = -Math.PI / 2; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
+    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = MOM.restRot; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
     this.state = 'ready'; this.timer = 1.2; this.setMeter(0, 0); audio.playSfx('bouquetWait', 0.8, true);   // cùng nhạc nền với lúc bắt hoa, lặp suốt lúc bưng
     showHint('Sẵn sàng… giữ thăng bằng nhé!', 1200);
   },
@@ -1151,7 +1151,7 @@ const trayAct = {
   },
   resetGift() {
     player.rig.body.rotation.x = 0; player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
-    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = -Math.PI / 2; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
+    MOM.g.position.set(MOM.rest.x, 0, MOM.rest.z); MOM.g.rotation.y = MOM.restRot; poseWalker(MOM.rig, 0, 0, false); MOM.rig.armR.rotation.x = 0; MOM.env.visible = false;
   },
   /* Cảnh nhận lì xì (~4,3 s): người chơi quay sang, hạ mâm → mẹ cô dâu bước tới, đưa bao đỏ bằng một tay → nhận bằng hai tay, cúi chào → giơ bao lên khoe. */
   giftStep(dt) {
