@@ -100,6 +100,20 @@
   #toastMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center; opacity:0; transition:opacity .25s;
     background:rgba(11,16,48,.8); border-radius:18px; padding:10px 18px; font-size:16px; font-weight:700; color:var(--gold); }
   #toastCount { position:absolute; left:50%; transform:translateX(-50%); top:max(26px,5%); background:rgba(11,16,48,.7); border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
+  #wishUI { position:absolute; inset:0; display:none; align-items:flex-start; justify-content:center; padding:max(56px,9%) 14px 0; pointer-events:none; }
+  #wishUI .card { display:none; pointer-events:auto; margin:0; padding:16px 16px 14px; max-height:calc(100% - 70px); overflow:auto; }
+  #wishUI h2 { margin:0 0 4px; color:var(--gold); font-size:20px; }
+  #wishUI p { margin:0 0 10px; color:#cfd3ff; font-size:13px; }
+  #wishText { width:100%; padding:11px 12px; font:16px/1.4 system-ui,sans-serif; border-radius:12px; border:2px solid rgba(255,255,255,.18); resize:none;
+    background:rgba(255,255,255,.08); color:#fff; outline:none; user-select:text; -webkit-user-select:text; }
+  #wishText:focus { border-color:var(--gold); }
+  .wishMeta { display:flex; justify-content:space-between; align-items:center; margin:6px 2px 8px; font-size:12.5px; color:#cfd3ff; }
+  #wishErr { min-height:18px; margin-bottom:6px; font-size:13px; color:#ff9aa8; }
+  #wishUI .row { display:flex; gap:8px; margin-top:8px; }
+  #wishUI button { flex:1; padding:12px 8px; font-size:15px; font-weight:700; border-radius:12px; border:0; cursor:pointer; touch-action:manipulation; background:rgba(255,255,255,.14); color:#fff; }
+  #wishUI button.main { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
+  #wishUI button.link { flex:none; padding:6px 10px; font-size:13px; font-weight:600; }
+  #wishLed { margin:4px 0 10px; padding:12px 10px; border-radius:10px; background:#05060f; color:#ffb703; font-weight:700; font-size:16px; line-height:1.35; border:2px solid #2a2a36; word-break:break-word; }
   #songPick { position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:16px; pointer-events:auto; background:rgba(0,0,0,.35); }
   #songPick .card { padding:18px; }
   #songPick h2 { margin:0 0 4px; color:var(--gold); }
@@ -179,6 +193,24 @@
     <div id="toastMsg"></div>
     <button id="toastBtn" type="button">Chúc rượu</button>
   </div>
+  <div id="wishUI">
+    <div class="card" id="wishWrite">
+      <h2>Gửi lời chúc</h2>
+      <p>Viết vài dòng cho Ngọc Khánh và Quốc Tuân. Lời chúc sẽ chạy trên màn LED ở sân khấu.</p>
+      <textarea id="wishText" rows="3" maxlength="120" placeholder="Ví dụ: Chúc hai bạn trăm năm hạnh phúc!" enterkeyhint="send"></textarea>
+      <div class="wishMeta"><span id="wishCount">0/120</span><button id="wishSuggest" class="link" type="button">Gợi ý cho mình</button></div>
+      <div id="wishErr"></div>
+      <div class="row"><button id="wishSend" class="main" type="button">Bỏ phong bì</button></div>
+      <div class="row"><button id="wishQuit" type="button">Ngại quá, thôi</button></div>
+    </div>
+    <div class="card" id="wishDone">
+      <h2>Phong bì đã vào thùng!</h2>
+      <div id="wishLed"></div>
+      <p id="wishDoneMsg"></p>
+      <div class="row"><button id="wishMore" type="button">Viết thêm</button></div>
+      <div class="row"><button id="wishDoneBtn" class="main" type="button">Xong</button></div>
+    </div>
+  </div>
   <div id="result"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
     <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resPick" type="button">Bài khác</button><button id="resDone" type="button">Tiếp tục</button></div>
@@ -235,6 +267,17 @@ const G = { started: false, ready: false, outfit: 0, name: 'Khách quý' };
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
   t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const rand = mulberry32(20261104);               // cố định để bố cục NPC lặp lại được
+function wrapText(g, text, maxW) {                    // chia chữ theo từ cho vừa chiều rộng; từ quá dài thì cắt theo ký tự
+  const lines = []; let cur = '';
+  for (const word of text.split(' ')) {
+    const tryLine = cur ? cur + ' ' + word : word;
+    if (g.measureText(tryLine).width <= maxW) { cur = tryLine; continue; }
+    if (cur) lines.push(cur);
+    cur = word;
+    while (g.measureText(cur).width > maxW && cur.length > 1) { let k = cur.length - 1; while (k > 1 && g.measureText(cur.slice(0, k)).width > maxW) k--; lines.push(cur.slice(0, k)); cur = cur.slice(k); }
+  }
+  if (cur) lines.push(cur); return lines;
+}
 const pick = (arr) => arr[Math.floor(rand() * arr.length)];
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -467,10 +510,14 @@ function buildStage() {
   // Màn LED: giai đoạn 2 sẽ gọi ledScreen.set(text) để hiện lời chúc.
   const led = canvasTex(1200, 180, () => {});
   ledScreen.tex = led;
-  ledScreen.set = (text) => {
+  ledScreen.set = (text) => {                                  // câu dài thì tự xuống dòng và thu nhỏ chữ cho vừa màn
     const { g, c } = led.userData, w = c.width, h = c.height;
     g.fillStyle = '#05060f'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#ffb703'; g.font = `bold 66px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 4);
+    g.fillStyle = '#ffb703'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = 66, lines;
+    for (;;) { g.font = `bold ${size}px ${FONT}`; lines = wrapText(g, text, w - 90); if (lines.length * size * 1.15 <= h - 24 || size <= 30) break; size -= 4; }
+    const lh = size * 1.15, y0 = h / 2 - (lines.length - 1) * lh / 2 + 3;
+    lines.forEach((l, i) => g.fillText(l, w / 2, y0 + i * lh));
     g.fillStyle = 'rgba(0,0,0,.35)'; for (let y = 0; y < h; y += 5) g.fillRect(0, y, w, 1.5);
     led.needsUpdate = true;
   };
@@ -809,8 +856,9 @@ function buildCharacter(o, name) {
 const input = { jx: 0, jy: 0, x: 0, y: 0 };
 const keys = new Set();
 const MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+const isTyping = (e) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 addEventListener('keydown', (e) => {
-  if (!G.started || e.target instanceof HTMLInputElement || !MOVE_KEYS.includes(e.code)) return;
+  if (!G.started || isTyping(e) || !MOVE_KEYS.includes(e.code)) return;
   keys.add(e.code); e.preventDefault();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
@@ -965,7 +1013,7 @@ function exitAct() {
 }
 $('actBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (nearSpot && !G.act) enterAct(nearSpot.act); });
 addEventListener('keydown', (e) => {
-  if (!G.started || G.act || !nearSpot || e.target instanceof HTMLInputElement) return;
+  if (!G.started || G.act || !nearSpot || isTyping(e)) return;
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enterAct(nearSpot.act); }
 });
 function showResult({ title, score, msg, again, pick, done }) {
@@ -1010,11 +1058,14 @@ function buildCouple() {
   const mom = buildCharacter({ kind: 'aodai', top: 0xc2185b, bottom: 0xfff4e0, arm: 0xc2185b, hair: 0x6b6b6b, bun: true }, 'Mẹ cô dâu');
   mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = MOM.restRot; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 2.02;
   scene.add(mom.g); couple.push(mom.g); addCircle(MOM.rest.x, MOM.rest.z, 0.4); MOM.g = mom.g; MOM.rig = mom.rig;
-  const env = new THREE.Group();                                  // bao lì xì: nền đỏ, dải và vòng vàng
+  MOM.env = makeEnvelope(); scene.add(MOM.env);
+}
+function makeEnvelope() {                                          // bao lì xì / phong bì: nền đỏ, dải và vòng vàng (đang ẩn)
+  const env = new THREE.Group();
   put(env, new THREE.BoxGeometry(0.17, 0.26, 0.025), M(0xd7263d), 0, 0, 0, false, false);
   put(env, new THREE.BoxGeometry(0.17, 0.07, 0.03), M(0xffd166), 0, 0.09, 0, false, false);
   put(env, new THREE.CylinderGeometry(0.035, 0.035, 0.035, 12).rotateX(Math.PI / 2), M(0xffd166), 0, -0.02, 0, false, false);
-  env.visible = false; scene.add(env); MOM.env = env;
+  env.visible = false; return env;
 }
 /* Mẹ cô dâu: đứng cạnh thảm đỏ, nhận mâm quả rồi lì xì cho người bê tráp (trayAct.giftStep). */
 const MOM = { restRot: -Math.PI / 4, rest: { x: 2.5, z: -13.9 }, meet: { x: 1.2, z: -13.3 }, g: null, rig: null, env: null };
@@ -1027,6 +1078,7 @@ function buildActivitySpots() {
   const t = makeTray(); t.group.position.set(x, 0.92, z); world.add(t.group);
   addSpot({ x, z, r: 3.0, label: 'Bưng tráp', act: trayAct });
   addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
+  addSpot({ x: 2.6, z: 13.2, r: 2.0, label: 'Bỏ phong bì', act: wishAct });               // thùng phong bì cạnh cổng
   addSpot({ x: -3.4, z: -10.6, r: 1.6, label: 'Rót tháp ly', act: pourAct });             // trước tháp ly bên trái sân khấu
   addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
@@ -1944,9 +1996,105 @@ const toastAct = {
 };
 $('toastBtn').addEventListener('click', (e) => { e.currentTarget.blur(); toastAct.press(); });
 addEventListener('keydown', (e) => {
-  if (!G.started || G.act || nearSpot || e.repeat || toastAct.near < 0 || e.target instanceof HTMLInputElement) return;
+  if (!G.started || G.act || nearSpot || e.repeat || toastAct.near < 0 || isTyping(e)) return;
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); toastAct.press(); }
 });
+
+/* =====================================================================
+   18. HOẠT ĐỘNG 6: BỎ PHONG BÌ + VIẾT LỜI CHÚC
+   Người chơi gõ tối đa 120 ký tự, qua bộ lọc từ thô tục thì phong bì rơi vào thùng, lời chúc chạy trên màn LED rồi lưu vào Sổ lời chúc (localStorage, chỉ máy này).
+   Lần gửi đầu được nhiều điểm Vui, các lần sau ít hơn để không cày điểm bằng cách gửi liên tục.
+   ===================================================================== */
+const WISH = { max: 120, min: 3, slot: { x: 2.6, y: 1.37, z: 12.22 }, stand: { x: 1.6, z: 12.9 }, dropTime: 1.1, ledMs: 12000, first: 40, again: 10 };
+const WISH_SAMPLES = [
+  'Chúc Ngọc Khánh và Quốc Tuân trăm năm hạnh phúc, sớm có tin vui!',
+  'Chúc hai bạn mãi nắm tay nhau như hôm nay, ngày nào cũng ngọt ngào!',
+  'Mừng ngày vui của hai bạn! Chúc tổ ấm luôn đầy tiếng cười.',
+  'Chúc đôi uyên ương đầu bạc răng long, cơm no áo ấm, tình yêu mãi xanh!',
+];
+
+/* Bộ lọc từ thô tục: danh sách tự soạn, CHƯA đầy đủ (không thể bắt hết các kiểu lách). Chữ đã gõ có dấu thì so khớp đúng dấu để
+   khỏi chặn nhầm từ bình thường ("các", "buổi", "điểm", "đeo", "lon"); chữ gõ không dấu chỉ chặn những từ ít nhập nhằng. */
+const stripAccent = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+const BAD_EXACT = new Set(['đụ', 'đù', 'đéo', 'lồn', 'cặc', 'buồi', 'cứt', 'điếm', 'đĩ']);                  // chỉ chặn khi gõ đúng dấu
+const BAD_PLAIN = new Set(['địt', 'dit', 'dm', 'dmm', 'dcm', 'dkm', 'vcl', 'vkl', 'vl', 'cl', 'clm', 'cmm', 'clgt', 'loz', 'lozz']);   // chặn cả gõ không dấu
+const BAD_PHRASES = [['đụ', 'má'], ['đụ', 'mẹ'], ['địt', 'mẹ'], ['địt', 'con'], ['đồ', 'chó'], ['óc', 'chó'], ['thằng', 'chó'], ['đồ', 'ngu'], ['con', 'điếm']];
+const BAD_COMPACT = ['ditme', 'ditcon', 'dumemay', 'dcmm', 'vcl', 'vkl', 'dkm', 'dmm', 'dcm', 'clgt'];   // bắt kiểu tách chữ "đ.ị.t m.ẹ", "d i t m e", "d1t"
+function wishIsClean(raw) {
+  const text = raw.normalize('NFC').toLowerCase(), tokens = text.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const same = (tok, w) => tok === w || (tok === stripAccent(tok) && stripAccent(w) === tok);               // gõ không dấu cũng khớp
+  for (const tok of tokens) if (BAD_EXACT.has(tok) || BAD_PLAIN.has(tok) || BAD_PLAIN.has(stripAccent(tok)) && tok === stripAccent(tok)) return false;
+  for (const p of BAD_PHRASES) for (let i = 0; i + p.length <= tokens.length; i++) if (p.every((w, j) => same(tokens[i + j], w))) return false;
+  const compact = stripAccent(text).replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/@/g, 'a').replace(/\$/g, 's').replace(/[^a-z]/g, '');
+  return !BAD_COMPACT.some((w) => compact.includes(w));
+}
+
+const ledLine = (w) => '“' + w.text + '” — ' + w.name;
+let ledHoldUntil = 0, wishSent = 0;
+setInterval(() => {                                   // hết thời gian giữ lời chúc thì màn LED về câu chào
+  if (G.started && ledHoldUntil && performance.now() > ledHoldUntil) { ledHoldUntil = 0; ledScreen.set('CHÚC MỪNG HẠNH PHÚC'); }
+}, 1000);
+
+const wishAct = {
+  state: 'idle', t: 0, env: null, text: '', from: new THREE.Vector3(), hp: new THREE.Vector3(),
+  show(id) { for (const c of ['wishWrite', 'wishDone']) $(c).style.display = c === id ? 'block' : 'none'; },
+  hand() { return player.group.localToWorld(this.hp.set(0.2, 0.95, 0.5)); },
+  enter() {
+    if (!this.env) { this.env = makeEnvelope(); this.env.scale.setScalar(1.7); scene.add(this.env); }
+    const S = WISH.stand; player.x = S.x; player.z = S.z; player.rot = Math.atan2(WISH.slot.x - S.x, WISH.slot.z - S.z);
+    player.group.position.set(S.x, 0, S.z); player.group.rotation.y = player.rot;             // đứng trước thùng phong bì
+    cam.yaw = player.rot + Math.PI + 0.5; cam.pitch = 0.3; cam.dist = 3.4; cam.lookY = 1.2;
+    this.env.visible = true; this.startWrite(); $('wishUI').style.display = 'flex';
+    $('wishText').focus({ preventScroll: true });
+  },
+  exit() {
+    $('wishUI').style.display = 'none'; $('wishText').blur(); if (this.env) this.env.visible = false;
+    poseWalker(player.rig, 0, 0, false); crowd.target = 0; this.state = 'idle';
+  },
+  startWrite() {
+    this.state = 'write'; this.t = 0; this.env.visible = true; this.err(''); $('wishText').value = ''; this.count(); this.show('wishWrite'); $('wishSend').disabled = false;
+  },
+  count() { $('wishCount').textContent = $('wishText').value.length + '/' + WISH.max; },
+  err(msg) { $('wishErr').textContent = msg; },
+  submit() {
+    if (this.state !== 'write') return;
+    const raw = $('wishText').value.replace(/\s+/g, ' ').trim();
+    if (raw.length < WISH.min) return this.err('Bạn viết thêm vài chữ nhé, ít nhất ' + WISH.min + ' ký tự!');
+    if (!wishIsClean(raw)) return this.err('Lời chúc có từ chưa lịch sự. Bạn sửa lại giúp nhé, ngày vui mà ♥');
+    this.text = raw; $('wishText').blur(); $('wishWrite').style.display = 'none';
+    this.state = 'drop'; this.t = 0; this.from.copy(this.hand());                           // bỏ phong bì xuống khe thùng
+  },
+  landed() {
+    this.env.visible = false; audio.clink(); crowd.target = 0.5; this.state = 'sent';
+    const rec = { name: G.name, text: this.text };
+    const pts = wishSent++ === 0 ? WISH.first : WISH.again; party.add(pts);
+    ledHoldUntil = performance.now() + WISH.ledMs; ledScreen.set(ledLine(rec));
+    $('wishLed').textContent = ledLine(rec);
+    $('wishDoneMsg').textContent = 'Lời chúc của bạn đang chạy trên màn LED ở sân khấu, ra xem nhé! (+' + pts + ' Vui)';
+    this.show('wishDone');
+  },
+  quit() { if (G.act !== this || this.state === 'drop') return; exitAct(); showHint('Lúc nào rảnh bạn quay lại gửi lời chúc nhé ♥', 4000); },
+  finish() { exitAct(); showHint('Lời chúc của bạn đang chạy trên màn LED ở sân khấu, ra xem nhé!', 6000); },
+  update(dt) {
+    this.t += dt; const S = this.state, r = player.rig; poseWalker(r, 0, 0, false);
+    if (S === 'write') {
+      r.armR.rotation.x = -1.2; this.env.position.copy(this.hand()); this.env.position.y += Math.sin(this.t * 2.5) * 0.015; this.env.rotation.set(0, player.rot, 0);
+    } else if (S === 'drop') {
+      const u = clamp(this.t / WISH.dropTime, 0, 1), e = ease(u), sl = WISH.slot;
+      this.env.position.set(lerp(this.from.x, sl.x, e), lerp(this.from.y, sl.y, e) + Math.sin(Math.PI * u) * 0.3, lerp(this.from.z, sl.z, e));
+      this.env.rotation.set(0, player.rot, lerp(0, -0.4, e)); r.armR.rotation.x = lerp(-1.2, -1.75, e);
+      if (u >= 1) this.landed();
+    }
+  },
+};
+$('wishText').addEventListener('input', () => { wishAct.count(); wishAct.err(''); });
+$('wishText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); wishAct.submit(); } else if (e.key === 'Escape') wishAct.quit(); });
+$('wishSend').addEventListener('click', () => wishAct.submit());
+$('wishSuggest').addEventListener('click', () => { $('wishText').value = pick(WISH_SAMPLES); wishAct.count(); wishAct.err(''); });
+$('wishQuit').addEventListener('click', (e) => { e.currentTarget.blur(); wishAct.quit(); });
+$('wishMore').addEventListener('click', () => wishAct.startWrite() || $('wishText').focus({ preventScroll: true }));
+$('wishDoneBtn').addEventListener('click', (e) => { e.currentTarget.blur(); wishAct.finish(); });
+
 
 /* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
@@ -2002,7 +2150,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, party, keys, crowd, audio };
+window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
