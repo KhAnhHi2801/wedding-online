@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1030">
 <title>Đi Đám Cưới Online</title>
 <style>
-  :root { --gold:#ffd166; --red:#d7263d; --ink:#0b1030; --card:rgba(18,12,36,.86); }
+  :root { --gold:#ffd166; --red:#d7263d; --ink:#0b1030; --card:rgba(44,10,30,.92); --burgundy:#8a1538; --burgundy-d:#4a0d1a; --bronze:#c98a2b; --cream:#fff4dc; --pill:rgba(46,10,32,.82); }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body,button,#rhythm,#songPick,#result { touch-action:manipulation; -webkit-touch-callout:none; }   /* chặn double-tap zoom */
   html,body { margin:0; height:100%; overflow:hidden; background:var(--ink); color:#fff;
@@ -41,12 +41,12 @@
   #hud { position:fixed; inset:0; pointer-events:none; z-index:10; display:none;
     padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)); }
   #counter { position:absolute; top:max(10px,env(safe-area-inset-top)); right:max(10px,env(safe-area-inset-right));
-    background:rgba(11,16,48,.7); border:1px solid rgba(255,209,102,.4); border-radius:999px; padding:6px 12px; font-size:12.5px; }
+    background:rgba(46,10,32,.7); border:1px solid rgba(255,209,102,.4); border-radius:999px; padding:6px 12px; font-size:12.5px; }
   #counter b { color:var(--gold); display:inline-block; }
   #counter.pop b { animation:cntPop .6s ease-out; }
   @keyframes cntPop { 0% { transform:scale(1); } 30% { transform:scale(1.7); color:#fff; } 100% { transform:scale(1); } }
   #hint { position:absolute; left:50%; top:16%; transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
-    background:rgba(11,16,48,.72); border-radius:14px; padding:9px 14px; font-size:13.5px; transition:opacity .8s; }
+    background:rgba(46,10,32,.86); border:1px solid rgba(255,209,102,.3); border-radius:14px; padding:9px 14px; font-size:13.5px; transition:opacity .3s; }
   #fps { position:absolute; left:10px; top:54px; font:12px monospace; color:#9f9; display:none; }
   #joy { position:absolute; left:max(22px,env(safe-area-inset-left)); bottom:max(26px,env(safe-area-inset-bottom)); width:132px; height:132px;
     border-radius:50%; background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.35); pointer-events:auto; touch-action:none; display:none; }
@@ -62,11 +62,11 @@
   #cerUI { position:absolute; inset:0; display:none; pointer-events:none; }
   #cerFade { position:absolute; inset:0; background:#000; opacity:1; transition:opacity .5s; }
   #cerCap { position:absolute; left:50%; bottom:calc(max(26px,env(safe-area-inset-bottom)) + 64px); transform:translateX(-50%); width:min(88vw,520px); text-align:center;
-    background:rgba(11,16,48,.8); border:1px solid rgba(255,209,102,.45); border-radius:16px; padding:12px 16px; font-size:16px; font-weight:700; color:#ffe9a8; opacity:0; transition:opacity .4s; }
+    background:rgba(46,10,32,.8); border:1px solid rgba(255,209,102,.45); border-radius:16px; padding:12px 16px; font-size:16px; font-weight:700; color:#ffe9a8; opacity:0; transition:opacity .4s; }
   #cerSkip { position:absolute; right:max(14px,env(safe-area-inset-right)); bottom:max(26px,env(safe-area-inset-bottom)); pointer-events:auto; padding:10px 18px; font-size:14px;
-    border:1px solid rgba(255,255,255,.45); border-radius:999px; background:rgba(11,16,48,.75); color:#fff; cursor:pointer; touch-action:manipulation; }
+    border:1px solid rgba(255,255,255,.45); border-radius:999px; background:rgba(46,10,32,.75); color:#fff; cursor:pointer; touch-action:manipulation; }
   #bal { position:absolute; left:50%; bottom:calc(max(24px,env(safe-area-inset-bottom)) + 36px); transform:translateX(-50%); width:min(88vw,360px);
-    display:none; text-align:center; background:rgba(11,16,48,.72); border-radius:16px; padding:10px 14px 12px; }
+    display:none; text-align:center; background:rgba(46,10,32,.72); border-radius:16px; padding:10px 14px 12px; }
   #bal.danger { box-shadow:0 0 0 3px rgba(255,70,90,.8); }
   #balTitle { font-weight:700; font-size:15px; color:var(--gold); }
   #balHint { font-size:12px; color:#cfd3ff; margin:2px 0 8px; }
@@ -85,11 +85,11 @@
   #resAgain { background:rgba(255,255,255,.14); color:#fff; }
   #resDone { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
   #mute { position:absolute; top:calc(max(10px,env(safe-area-inset-top)) + 38px); right:max(10px,env(safe-area-inset-right)); width:38px; height:38px;
-    border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(11,16,48,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
+    border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(46,10,32,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
   #rhythm { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); transform:translateX(-50%); width:min(90vw,360px); height:min(50vh,400px);
     display:none; pointer-events:auto; touch-action:none; }
   #karaQuit { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px + min(50vh,400px) + 10px); transform:translateX(-50%); display:none; pointer-events:auto;
-    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
+    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(46,10,32,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
   #pourUI { position:absolute; inset:0; display:none; pointer-events:none; }
   #pourRound { position:absolute; right:max(14px,env(safe-area-inset-right)); top:calc(24% - 4px); width:64px; text-align:center; font-size:13px; font-weight:700; color:#fff; }
   #pourGauge { position:absolute; right:max(16px,env(safe-area-inset-right)); top:26%; width:56px; height:min(34vh,250px); border:3px solid rgba(255,255,255,.8); border-radius:6px 6px 24px 24px;
@@ -104,11 +104,11 @@
     background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; font-size:20px; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.45); pointer-events:auto; touch-action:none; cursor:pointer; }
   #pourBtn.on { transform:translateX(-50%) scale(.96); filter:brightness(1.12); }
   #pourQuit { position:absolute; left:50%; transform:translateX(-50%); bottom:calc(max(30px,env(safe-area-inset-bottom) + 20px) + 76px + 16px); pointer-events:auto;
-    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(11,16,48,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
+    padding:9px 18px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(46,10,32,.78); color:#fff; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
   #toastUI { position:absolute; inset:0; display:none; pointer-events:none; }
   #toastMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center; opacity:0; transition:opacity .25s;
-    background:rgba(11,16,48,.8); border-radius:18px; padding:10px 18px; font-size:16px; font-weight:700; color:var(--gold); }
-  #toastCount { position:absolute; left:50%; transform:translateX(-50%); top:max(26px,5%); background:rgba(11,16,48,.7); border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
+    background:rgba(46,10,32,.8); border-radius:18px; padding:10px 18px; font-size:16px; font-weight:700; color:var(--gold); }
+  #toastCount { position:absolute; left:50%; transform:translateX(-50%); top:max(26px,5%); background:rgba(46,10,32,.7); border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
   #wishUI { position:absolute; inset:0; display:none; align-items:flex-start; justify-content:center; padding:max(56px,9%) 14px 0; pointer-events:none; }
   #wishUI .card { display:none; pointer-events:auto; margin:0; padding:16px 16px 14px; max-height:calc(100% - 70px); overflow:auto; }
   #wishUI h2 { margin:0 0 4px; color:var(--gold); font-size:20px; }
@@ -140,13 +140,80 @@
   #resPick { background:rgba(255,255,255,.14); color:#fff; }
   #catchUI { position:absolute; inset:0; display:none; pointer-events:none; }
   #catchMsg, #pourMsg { position:absolute; left:50%; top:max(70px,12%); transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
-    background:rgba(11,16,48,.75); border-radius:999px; padding:8px 18px; font-size:15px; font-weight:700; color:var(--gold); }
+    background:rgba(46,10,32,.75); border-radius:999px; padding:8px 18px; font-size:15px; font-weight:700; color:var(--gold); }
   .cStage { position:absolute; left:50%; top:66%; width:0; height:0; }
   #cTarget, #cRing { position:absolute; width:104px; height:104px; margin:-52px 0 0 -52px; border-radius:50%; }
   #cTarget { border:5px solid #ffd166; background:rgba(255,209,102,.18); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#fff; }
   #cRing { border:7px solid #ff7eb6; transform:scale(3.4); opacity:0; box-shadow:0 0 14px rgba(255,126,182,.8); }
   #knob { position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:50%; transform:translate(-50%,-50%);
     background:rgba(255,209,102,.75); border:2px solid #fff; }
+
+  /* ---------- Lớp giao diện: đỏ đô, vàng đồng, kem ---------- */
+  :focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  #nameIn:focus-visible, #wishText:focus-visible { outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(255,209,102,.35); }
+  .card { border:1px solid rgba(255,209,102,.55); background:linear-gradient(180deg,rgba(96,16,46,.95),rgba(40,9,28,.95));
+    box-shadow:0 14px 44px rgba(0,0,0,.55), inset 0 0 0 4px rgba(44,10,30,.9), inset 0 0 0 5px rgba(255,209,102,.22); }
+  .card h1 { background:linear-gradient(180deg,var(--cream),#ffc65a); -webkit-background-clip:text; background-clip:text; }
+  .card .sub { margin-bottom:6px; color:#ffd0dc; }
+  .orn { display:flex; align-items:center; gap:10px; width:64%; margin:0 auto 12px; color:var(--gold); font-size:12px; }
+  .orn::before, .orn::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--gold)); }
+  .orn::after { transform:scaleX(-1); }
+  .card label small { color:#d8b98a; font-size:11.5px; }
+  #go, #actBtn, #toastBtn, #pourBtn, #resDone, #wishUI button.main {
+    background:linear-gradient(180deg,#ffe9a6,#f2b13a 70%,#d9922a);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 3px 0 #8d5a14, 0 8px 18px rgba(0,0,0,.4); }
+  button { transition:transform .12s, filter .12s; }
+  button:not(#pourBtn):not(:disabled):active { filter:brightness(.92); }
+  #go:not(:disabled):active, #resDone:active, #wishUI button.main:active { transform:translateY(2px) scale(.98); }
+  #actBtn:active, #toastBtn:active { animation:none; transform:scale(.95); }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  #loadWrap { margin-top:10px; }
+  #loadBar { height:8px; border-radius:99px; background:rgba(255,255,255,.14); overflow:hidden; }
+  #loadFill { height:100%; width:6%; border-radius:99px; background:linear-gradient(90deg,#ffe9a6,#f2b13a); transition:width .3s ease-out; }
+  #loadMsg { margin-top:6px; min-height:16px; font-size:12.5px; color:#e8cfa0; text-align:center; }
+  #splash.ready #loadBar { visibility:hidden; }
+  /* HUD: Không khí tiệc, mục tiêu, tiến độ chúc rượu */
+  #party { width:min(38vw,150px); padding:5px 10px 7px; border-radius:14px; background:var(--pill); border:1px solid rgba(255,209,102,.4); }
+  #party span { font-weight:600; color:var(--cream); }
+  #goal { position:absolute; left:max(10px,env(safe-area-inset-left)); top:calc(max(10px,env(safe-area-inset-top)) + 50px); max-width:calc(100% - 78px);
+    display:none; padding:6px 12px; border-radius:999px; background:var(--pill); border:1px solid rgba(255,209,102,.4);
+    font-size:12.5px; line-height:1.3; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #toastCount { left:max(10px,env(safe-area-inset-left)); transform:none; top:calc(max(10px,env(safe-area-inset-top)) + 90px); padding:5px 12px; font-size:12.5px;
+    border:1px solid rgba(255,209,102,.4); color:var(--cream); }
+  #mute { width:44px; height:44px; z-index:5; top:calc(max(10px,env(safe-area-inset-top)) + 40px); font-size:19px; }
+  #actDesc { position:absolute; right:max(18px,env(safe-area-inset-right)); bottom:calc(max(36px,env(safe-area-inset-bottom)) + 72px); display:none; max-width:min(62vw,260px);
+    text-align:right; padding:5px 12px; border-radius:12px; background:var(--pill); font-size:12.5px; color:var(--cream); pointer-events:none; }
+  /* Vùng chạm tối thiểu 44 px */
+  #wishUI button, #result button, #songBack, #karaQuit, #pourQuit, #cerSkip, .songBtn { min-height:44px; }
+  #wishUI button.link { min-height:44px; padding:8px 12px; }
+  #calibRow button { width:44px; height:44px; }
+  #wishUI { padding-top:max(100px,12%); }
+  #wishUI .card { max-height:calc(100% - 120px); }
+  /* Bảng kết quả */
+  #resTitle { font-size:22px; letter-spacing:.3px; }
+  #resScore { font-size:48px; color:#ffb3d1; text-shadow:0 2px 0 rgba(0,0,0,.35); }
+  #result #resAgain, #result #resPick { border:1px solid rgba(255,255,255,.28); }
+  #result #resDone { flex:1.4; font-size:16px; }
+  /* Hiện panel mượt, 150–250 ms */
+  @keyframes panelIn { from { opacity:0; transform:translateY(10px) scale(.97); } to { opacity:1; transform:none; } }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  #result, #songPick { animation:fadeIn .2s ease-out; }
+  #result .card, #songPick .card, #wishUI .card, #splash .card { animation:panelIn .22s ease-out; }
+  @media (prefers-reduced-motion:reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  }
+  /* Điện thoại xoay ngang: gọn lại để không che cảnh */
+  @media (max-height:520px) {
+    #splash .card { width:min(600px,100%); padding:14px 16px; }
+    .card h1 { font-size:22px; } .orn { display:none; } .card .sub { margin-bottom:8px; }
+    #outfits { grid-template-columns:repeat(6,1fr); }
+    .outfit { padding:6px 2px; font-size:11.5px; } .outfit i { width:22px; height:22px; margin-bottom:3px; }
+    #go { margin-top:10px; padding:11px; font-size:17px; }
+    #toastCount { top:max(10px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); }
+    #hint { top:96px; font-size:12.5px; }
+    #wishUI { padding-top:60px; } #wishUI .card { max-height:calc(100% - 70px); }
+    #actDesc { display:none !important; }
+  }
 </style>
 <script type="importmap">
 { "imports": {
@@ -162,20 +229,40 @@
   <div class="card">
     <h1>Đi Đám Cưới Online</h1>
     <p class="sub">Mời bạn vào dự tiệc cưới ♥</p>
-    <label for="nameIn">Tên của bạn</label>
+    <div class="orn" aria-hidden="true">✦</div>
+    <label for="nameIn">Tên của bạn <small>(để trống mình gọi là “Khách quý”)</small></label>
     <input id="nameIn" type="text" maxlength="16" placeholder="Khách quý" autocomplete="off">
     <label>Chọn trang phục</label>
     <div id="outfits"></div>
     <button id="go" disabled>Đang dựng rạp…</button>
+    <div id="loadWrap"><div id="loadBar"><div id="loadFill"></div></div><div id="loadMsg" role="status"></div></div>
     <div id="err">Chưa tải được rạp cưới. Bạn kiểm tra mạng rồi tải lại trang nhé!</div>
   </div>
 </div>
 
+<script>
+  // Thanh tiến độ ước lượng theo thời gian, nhảy lên 60% khi file dữ liệu âm thanh tải xong và 100% khi game dựng xong
+  (function () {
+    var fill = document.getElementById('loadFill'), msg = document.getElementById('loadMsg'), t0 = Date.now(), p = 8, floor = 0, done = false;
+    function set(v, m) { fill.style.width = v + '%'; if (m) msg.textContent = m; }
+    set(p, 'Đang tải rạp cưới…');
+    var timer = setInterval(function () {
+      if (done) return;
+      p = Math.max(p + (88 - p) * 0.05, floor);
+      set(p, (Date.now() - t0) > 8000 ? 'Mạng hơi chậm, bạn chờ thêm chút nhé…' : (p > 55 ? 'Đang dựng rạp cưới…' : 'Đang tải rạp cưới…'));
+    }, 250);
+    window.__loadStep = function (v) { floor = v; };
+    window.__loadFail = function () { msg.textContent = 'Chưa tải được âm thanh, bạn vẫn vào tiệc được nhé'; };
+    window.__loadDone = function () { done = true; clearInterval(timer); document.getElementById('splash').classList.add('ready'); set(100, 'Rạp cưới đã sẵn sàng ♥'); };
+  })();
+</script>
+
 <div id="hud">
   <div id="counter">Hôm nay có <b id="count">0</b> người đi ăn cưới</div>
-  <div id="hint"></div>
+  <div id="hint" role="status" aria-live="polite"></div>
+  <div id="goal"></div>
   <div id="fps"></div>
-  <button id="mute" type="button" aria-label="Bật/tắt tiếng">🔊</button>
+  <button id="mute" type="button" aria-label="Bật/tắt tiếng" aria-pressed="false">🔊</button>
   <canvas id="rhythm"></canvas>
   <button id="karaQuit" type="button">Ngại quá, không hát nữa</button>
   <div id="party"><span>Không khí tiệc</span><div class="bar"><div id="partyFill"></div></div></div>
@@ -186,6 +273,7 @@
     <div class="progTrack"><div id="progFill"></div></div>
   </div>
   <button id="actBtn" type="button">Bưng tráp</button>
+  <div id="actDesc"></div>
   <div id="catchUI">
     <div id="catchMsg"></div>
     <div class="cStage"><div id="cTarget">BẮT!</div><div id="cRing"></div></div>
@@ -221,11 +309,11 @@
       <div class="row"><button id="wishDoneBtn" class="main" type="button">Xong</button></div>
     </div>
   </div>
-  <div id="result"><div class="card">
+  <div id="result" role="dialog" aria-modal="true" aria-labelledby="resTitle"><div class="card">
     <h2 id="resTitle"></h2><div id="resScore"></div><p id="resMsg"></p>
     <div class="row"><button id="resAgain" type="button">Chơi lại</button><button id="resPick" type="button">Bài khác</button><button id="resDone" type="button">Tiếp tục</button></div>
   </div></div>
-  <div id="songPick"><div class="card">
+  <div id="songPick" role="dialog" aria-modal="true"><div class="card">
     <h2>Chọn bài hát</h2><p>Nốt rơi tới vòng tròn thì chạm vào nhé. Chưa kịp chạm, nhạc sẽ đứng chờ bạn!</p>
     <div id="songList"></div>
     <div id="calibRow"><span>Chỉnh cho khớp tiếng</span><button id="calibMinus" type="button" aria-label="Giảm độ trễ">−</button><b id="calibVal">0 ms</b><button id="calibPlus" type="button" aria-label="Tăng độ trễ">+</button></div>
@@ -236,7 +324,7 @@
 </div>
 
 <!-- Nhạc + bố cục nốt (sinh bởi tools/build-songs-data.py). Bước gộp một file cuối sẽ nhúng thẳng vào đây. -->
-<script src="songs-data.js"></script>
+<script defer src="songs-data.js" onload="window.__loadStep&&__loadStep(60)" onerror="window.__loadFail&&__loadFail()"></script>
 <script type="module" id="game">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -256,18 +344,19 @@ const CFG = {
 
 // 6 bộ đồ. kind quyết định hình dáng thân.
 const OUTFITS = [
-  { name: 'Áo dài đỏ',  kind: 'aodai', top: 0xd7263d, bottom: 0xfff4e0, arm: 0xd7263d, hair: 0x2a1a14, bun: true,  swatch: '#d7263d' },
-  { name: 'Áo dài xanh', kind: 'aodai', top: 0x1f6fb2, bottom: 0xfff4e0, arm: 0x1f6fb2, hair: 0x1b1b1b, bun: false, swatch: '#1f6fb2' },
-  { name: 'Vest',       kind: 'suit',  top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false, swatch: '#23283b' },
-  { name: 'Váy hồng',   kind: 'dress', top: 0xff7eb6, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x3b2417, bun: true,  swatch: '#ff7eb6' },
-  { name: 'Sơ mi',      kind: 'shirt', top: 0xf4f4f4, bottom: 0x3b4a6b, arm: 0xf4f4f4, hair: 0x2a1a14, bun: false, swatch: '#f4f4f4' },
-  { name: 'Váy vàng',   kind: 'dress', top: 0xffc233, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: false, swatch: '#ffc233' },
+  { name: 'Áo dài đỏ',  kind: 'aodai', top: 0xd7263d, bottom: 0xfff4e0, arm: 0xd7263d, hair: 0x2a1a14, bun: true,  swatch: '#d7263d', deco: 'aodaiRed', shoe: 0xe3b04b },
+  { name: 'Áo dài xanh', kind: 'aodai', top: 0x1f6fb2, bottom: 0xfff4e0, arm: 0x1f6fb2, hair: 0x1b1b1b, bun: false, swatch: '#1f6fb2', deco: 'aodaiBlue', shoe: 0xf5f5f5 },
+  { name: 'Vest',       kind: 'suit',  top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false, swatch: '#23283b', deco: 'suit', shoe: 0x15151c },
+  { name: 'Váy hồng',   kind: 'dress', top: 0xff7eb6, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x3b2417, bun: true,  swatch: '#ff7eb6', deco: 'dressPink', shoe: 0xffffff },
+  { name: 'Sơ mi',      kind: 'shirt', top: 0xf4f4f4, bottom: 0x3b4a6b, arm: 0xf4f4f4, hair: 0x2a1a14, bun: false, swatch: '#f4f4f4', deco: 'shirt', shoe: 0x6b4a2f },
+  { name: 'Váy vàng',   kind: 'dress', top: 0xffc233, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: false, swatch: '#ffc233', deco: 'dressYellow', shoe: 0xfff4e0 },
 ];
 
-const SKINS  = [0xffd9b8, 0xf2c29b, 0xe0a97c, 0xc68863];
-const HAIRS  = [0x15110f, 0x2a1a14, 0x3b2417];
-const SHIRTS = [0xe63946, 0xf4a261, 0x2a9d8f, 0x457b9d, 0xff6fb5, 0xffd166, 0x9b5de5, 0x06d6a0, 0xffffff, 0x118ab2];
-const PANTS  = [0x22223b, 0x3a3a5a, 0x4a3b2a, 0x2b2d42];
+const SKINS  = [0xffd9b8, 0xf2c29b, 0xe0a97c, 0xc68863, 0xfbe3cf, 0xb57a52];
+const HAIRS  = [0x15110f, 0x2a1a14, 0x3b2417, 0x5a3a24, 0x0d0d0d, 0x6b4a2c];
+const ELDER_HAIRS = [0xe6e6e6, 0xc9c9c9, 0x9a9a9a];
+const SHIRTS = [0xe63946, 0xf4a261, 0x2a9d8f, 0x457b9d, 0xff6fb5, 0xffd166, 0x9b5de5, 0x06d6a0, 0xffffff, 0x118ab2, 0x8a1538, 0xf6c1cc, 0xe9d8a6, 0x3a7ca5];
+const PANTS  = [0x22223b, 0x3a3a5a, 0x4a3b2a, 0x2b2d42, 0x5c5470, 0x6b6b6b];
 
 const G = { started: false, ready: false, outfit: 0, name: 'Khách quý' };
 
@@ -347,7 +436,7 @@ scene.fog = new THREE.Fog(0x070b22, 28, 85);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 220);
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
-scene.add(new THREE.HemisphereLight(0x9aa6ff, 0x3a2a40, 1.7));
+scene.add(new THREE.HemisphereLight(0xc2b4ff, 0x4a2c3a, 1.7));
 const sun = new THREE.DirectionalLight(0xbfd0ff, 1.5);          // "ánh trăng" — nguồn đổ bóng duy nhất
 sun.position.set(-12, 28, 16); sun.target.position.set(0, 0, -3);
 sun.castShadow = true;
@@ -358,7 +447,7 @@ sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 
 const warmLights = [[-6, 4, 7], [6, 4, 7], [-6, 4, -5], [6, 4, -5], [0, 4.2, -11]].map(([x, y, z]) => {
-  const l = new THREE.PointLight(0xffc27a, 60, 20, 2); l.position.set(x, y, z); scene.add(l); return l;
+  const l = new THREE.PointLight(0xffb765, 80, 20, 2); l.position.set(x, y, z); scene.add(l); return l;
 });
 const stageLight = new THREE.PointLight(0xff7ab8, 55, 14, 2); stageLight.position.set(0, 4.5, -16.5); scene.add(stageLight);
 
@@ -586,9 +675,9 @@ function buildTables() {
   tablePos.push({ x: -10.8, z: 1 }, { x: 10.8, z: 1 });
   const T = tablePos.length, SEATS = 6;
 
-  const cloth = makeInst(new THREE.CylinderGeometry(1.2, 1.32, 0.78, 20), M(0xc1121f), T);
+  const cloth = makeInst(new THREE.CylinderGeometry(1.2, 1.32, 0.78, 20), M(0xffffff), T);
   const doily = makeInst(new THREE.CylinderGeometry(0.55, 0.55, 0.02, 16), M(0xfff4e0), T, false, true);
-  const vase = makeInst(new THREE.CylinderGeometry(0.07, 0.1, 0.22, 8), M(0xffd166), T, true, false);
+  const vase = makeInst(new THREE.CylinderGeometry(0.07, 0.1, 0.22, 8), M(0xffffff), T, true, false);
   const bloom = makeInst(new THREE.IcosahedronGeometry(0.17, 0), M(0xffffff), T * 2, true, false);
   const plates = makeInst(new THREE.CylinderGeometry(0.16, 0.13, 0.025, 12), M(0xffffff), T * SEATS, false, true);
   const bottles = makeInst(new THREE.CylinderGeometry(0.04, 0.045, 0.3, 6), M(0xffffff), T * 4, true, false);
@@ -602,10 +691,11 @@ function buildTables() {
   ]);
   const chairs = makeInst(chairGeo, M(0xf5f1e6), T * SEATS);
 
-  const drinkCol = [0x2f7a3a, 0xb36a1d, 0xff8c1a, 0xd9d9d9], blooms = [0xff5c8a, 0xfff4e0, 0xffd166];
+  const drinkCol = [0x2f7a3a, 0xb36a1d, 0xff8c1a, 0xd9d9d9], blooms = [0xff5c8a, 0xfff4e0, 0xffd166, 0xff9ab0, 0xffffff];
+  const CLOTHS = [0xc1121f, 0xf3e6cf, 0xc1121f, 0xf4b6c6, 0x8a1538, 0xc1121f];   // khăn trải bàn: đỏ là chủ đạo, xen kem, hồng, đỏ đô
   let pi = 0, ci = 0, bi = 0;
   tablePos.forEach((t, ti) => {
-    setInst(cloth, ti, t.x, 0.39, t.z); setInst(doily, ti, t.x, 0.785, t.z); setInst(vase, ti, t.x, 0.9, t.z);
+    setInst(cloth, ti, t.x, 0.39, t.z, 0, 1, 1, 1, CLOTHS[ti % CLOTHS.length]); setInst(doily, ti, t.x, 0.785, t.z); setInst(vase, ti, t.x, 0.9, t.z, 0, 1, 1, 1, [0xffd166, 0xffffff, 0xf4b6c6][ti % 3]);
     setInst(bloom, ti * 2, t.x, 1.06, t.z, 0, 1, 1, 1, pick(blooms)); setInst(bloom, ti * 2 + 1, t.x + 0.1, 1.0, t.z + 0.05, 0, 0.75, 0.75, 0.75, pick(blooms));
     addCircle(t.x, t.z, 1.95);                                  // gồm cả vòng ghế: gọn, đủ dùng cho giai đoạn 1
     for (let k = 0; k < SEATS; k++) {
@@ -707,8 +797,59 @@ function buildDecor() {
   scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false })));
 }
 
+/* ---- 5.8 Ngoài cổng: thảm đỏ ra đường, đèn lồng sàn, tấm chào mừng, đèn đường, chậu hoa, vạch đường.
+   Màn dọc lúc mới vào nhìn thấy dải z 21..25 ở nửa dưới màn hình, nên phần lớn vật nằm sát thảm. Người chơi không đi quá z=24. ---- */
+function buildOutside() {
+  const flat = (w, d) => new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2);
+  // makeInst tắt culling; vật ngoài cổng thì bật lại để khỏi tốn draw call khi người chơi quay vào rạp
+  const cull = (m) => { finishInst(m); m.computeBoundingSphere(); m.frustumCulled = true; world.add(m); return m; };
+  put(world, flat(2.4, 8), M(0xb3122f), 0, 0.02, 21.5, false, true);                                        // thảm đỏ nối ra đường
+  put(world, merge([[flat(0.12, 8), -1.2, 0, 0], [flat(0.12, 8), 1.2, 0, 0]]), M(0xffd166), 0, 0.025, 21.5, false, false);
+  const matTex = canvasTex(512, 256, (g, w, h) => {                                                         // tấm thảm chào mừng trải trên đường
+    g.fillStyle = '#fff4e0'; g.fillRect(0, 0, w, h); g.strokeStyle = '#c98a2b'; g.lineWidth = 8; g.strokeRect(10, 10, w - 20, h - 20);
+    g.fillStyle = '#8a1538'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `bold 54px ${FONT}`; g.fillText('CHÀO MỪNG', w / 2, h * 0.34); g.font = `bold 32px ${FONT}`; g.fillText('Ngọc Khánh ♥ Quốc Tuân', w / 2, h * 0.68, w - 50);
+  });
+  put(world, flat(2.0, 1.0), new THREE.MeshBasicMaterial({ map: matTex }), 0, 0.035, 23.1, false, false);   // đặt vừa trong khung nửa dưới màn dọc lúc mới vào (camera ở z≈28)
+
+  // Đèn lồng sàn dọc hai mép thảm + vệt sáng ấm dưới chân (đĩa cộng sáng, không dùng đèn thật)
+  const lanGeo = merge([[new THREE.CylinderGeometry(0.13, 0.13, 0.3, 8), 0, 0.18, 0], [new THREE.CylinderGeometry(0.15, 0.15, 0.04, 8), 0, 0.35, 0], [new THREE.CylinderGeometry(0.15, 0.15, 0.04, 8), 0, 0.03, 0]]);
+  const lz = [19.4, 20.8, 22.2, 23.6, 25.0], lamps = [[-23, 21.5], [-15, 21.5], [-7, 21.5], [7, 21.5], [15, 21.5], [23, 21.5]];
+  const lans = makeInst(lanGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), lz.length * 2, false, false);
+  const glowTex = canvasTex(64, 64, (g, w, h) => {                                                           // vệt sáng mềm: tâm trắng mờ dần ra nền đen (cộng sáng nên nền đen không hiện)
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+    const r = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, h);
+  });
+  const glow = makeInst(new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffffff, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), lz.length * 2 + lamps.length, false, false);
+  let li = 0, gi = 0;
+  for (const sx of [-1, 1]) lz.forEach((z, k) => {
+    setInst(lans, li++, sx * 1.6, 0, z, 0, 1, 1, 1, k % 2 ? 0xffd27a : 0xff5a4d); setInst(glow, gi++, sx * 1.6, 0.05, z, 0, 0.9, 1, 0.9, 0xffa84a);
+    if (z < 24) addCircle(sx * 1.6, z, 0.22);
+  });
+  // Đèn đường: cột + bóng sáng + vệt sáng trên mặt đường
+  const poles = makeInst(new THREE.CylinderGeometry(0.05, 0.07, 3.4, 6), M(0x2a2d3a), lamps.length, false, false);
+  const heads = makeInst(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe0a8 }), lamps.length, false, false);
+  lamps.forEach(([x, z], k) => { setInst(poles, k, x, 1.7, z); setInst(heads, k, x, 3.5, z); setInst(glow, gi++, x, 0.05, z, 0, 3.4, 1, 3.4, 0xffa84a); if (Math.abs(x) <= 15) addCircle(x, z, 0.25); });
+  // Vạch giữa đường (bỏ đoạn nằm dưới tấm chào mừng)
+  const xs = []; for (let x = -28; x <= 28; x += 4) if (Math.abs(x) > 2) xs.push(x);
+  const dashes = makeInst(new THREE.BoxGeometry(1.4, 0.02, 0.16), M(0xe8e2c8), xs.length, false, true);
+  xs.forEach((x, k) => setInst(dashes, k, x, 0.012, 24.2));
+  // Chậu hoa hai bên cổng, ngoài hàng rào
+  const px = [-8.6, -5.2, 5.2, 8.6], pz = 19.6, bc = [0xff5c8a, 0xfff4e0, 0xffd166, 0xff9ab0];
+  const boxes = makeInst(new THREE.BoxGeometry(1.5, 0.45, 0.7), M(0xfff4e0), px.length, false, true);
+  const hedge = makeInst(new THREE.BoxGeometry(1.4, 0.4, 0.6), M(0x2c7a3f), px.length, false, true);
+  const blooms = makeInst(new THREE.IcosahedronGeometry(0.13, 0), M(0xffffff), px.length * 6, false, false);
+  let bi = 0;
+  px.forEach((x, k) => {
+    setInst(boxes, k, x, 0.225, pz); setInst(hedge, k, x, 0.65, pz); addCircle(x, pz, 0.8);
+    for (let j = 0; j < 6; j++) setInst(blooms, bi++, x - 0.55 + j * 0.22, 0.92 + (j % 2) * 0.05, pz + ((j * 7) % 3 - 1) * 0.12, 0, 1, 1, 1, bc[(j + k) % 4]);
+  });
+  [lans, glow, poles, heads, dashes, boxes, hedge, blooms].forEach(cull);
+}
+
 function buildWorld() {
-  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildActivitySpots();
+  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildOutside(); buildActivitySpots();
   world.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); });       // vật tĩnh: khỏi tính lại ma trận mỗi khung
 }
 
@@ -716,14 +857,26 @@ function buildWorld() {
    6. NPC (InstancedMesh) — giai đoạn 1: đứng/ngồi yên, vẫn lưu bản ghi để giai đoạn 3 làm sống động
    ===================================================================== */
 const npcs = [];
+/* Diện mạo ngẫu nhiên của một NPC. r() trả số 0..1 (rand cố định cho khách ngồi bàn, Math.random cho khách đến sau).
+   Chỉ là dữ liệu màu/tỷ lệ + 3 cờ cho InstancedMesh phụ (váy, tóc dài, kính): số draw call không tăng theo số kiểu. */
+function look(kind, r) {
+  const pk = (a) => a[Math.floor(r() * a.length)], female = r() < 0.5, shirt = pk(SHIRTS);
+  return {
+    skin: pk(SKINS), hair: kind === 'elder' ? pk(ELDER_HAIRS) : pk(HAIRS), shirt, pants: pk(PANTS),
+    w: 0.9 + r() * 0.22,                                   // thân gầy hay đậm
+    skirt: female && kind !== 'elder' && r() < 0.6,        // chỉ dùng cho người đứng (khách ngồi bàn bị tắt lại)
+    skirtCol: r() < 0.5 ? shirt : pk(SHIRTS),
+    longHair: female && kind !== 'elder' && r() < 0.7,
+    glasses: kind !== 'kid' && r() < (kind === 'elder' ? 0.35 : 0.15),
+  };
+}
 function planNPCs() {
   const kinds = [['adult', 0.7], ['elder', 0.15], ['kid', 0.15]];
   const kindOf = () => { let r = rand(); for (const [k, p] of kinds) { if ((r -= p) < 0) return k; } return 'adult'; };
-  const make = (x, z, rot, seated, kind = kindOf()) => ({
-    x, z, rot, seated, kind,
-    scale: kind === 'kid' ? 0.62 : kind === 'elder' ? 0.93 : 0.97 + rand() * 0.08,
-    skin: pick(SKINS), hair: kind === 'elder' ? 0xe6e6e6 : pick(HAIRS), shirt: pick(SHIRTS), pants: pick(PANTS),
-  });
+  const make = (x, z, rot, seated, kind = kindOf()) => {
+    const lk = look(kind, rand); if (seated) lk.skirt = false;
+    return Object.assign({ x, z, rot, seated, kind, scale: kind === 'kid' ? 0.6 + rand() * 0.08 : kind === 'elder' ? 0.9 + rand() * 0.05 : 0.95 + rand() * 0.12 }, lk);
+  };
   for (const s of seats) if (rand() < 0.74) npcs.push(Object.assign(make(s.x, s.z, s.rot, true), { table: s.table }));
   // NPC đứng: nhóm chụp ảnh cạnh sân khấu, khách mới ở cổng, trẻ con ở lối giữa hai dãy bàn
   const groups = [
@@ -742,8 +895,8 @@ function planNPCs() {
   for (let k = 0; k < 8; k++) npcs.push(Object.assign(make(0, -30, Math.PI, false, 'adult'), { reserve: true, vis: 0 }));
   // Sống động: 5 đoàn khách mới (mỗi đoàn 3 người, ẩn sẵn, lần lượt đi vào cổng) và 2 bé chạy quanh lối bên. Dùng Math.random để không đổi bố cục cố định ở trên.
   const rp = (a) => a[Math.floor(Math.random() * a.length)];
-  const life = (kind, extra) => ({ x: 0, z: -30, rot: Math.PI, seated: false, kind, scale: kind === 'kid' ? 0.62 : kind === 'elder' ? 0.93 : 0.97 + Math.random() * 0.08,
-    skin: rp(SKINS), hair: kind === 'elder' ? 0xe6e6e6 : rp(HAIRS), shirt: rp(SHIRTS), pants: rp(PANTS), ...extra });
+  const life = (kind, extra) => ({ x: 0, z: -30, rot: Math.PI, seated: false, kind, scale: kind === 'kid' ? 0.6 + Math.random() * 0.08 : kind === 'elder' ? 0.9 + Math.random() * 0.05 : 0.95 + Math.random() * 0.12,
+    ...look(kind, Math.random), ...extra });
   for (let g = 0; g < 5; g++) for (const kind of ['adult', g % 2 ? 'elder' : 'adult', g % 2 ? 'adult' : 'kid']) npcs.push(life(kind, { arrive: g, vis: 0 }));
   for (const sx of [-1, 1]) npcs.push(life('kid', { runner: true, x: sx * 7.4, z: sx * 3, rot: Math.random() * 6.28 }));
 }
@@ -760,7 +913,7 @@ function placeNpc(i, hop, clap, first) {
   // Trường n.vis (0..1, mặc định 1) thu/phóng cả NPC; n.jump = nhảy (m); n.up (0..1) = giơ hai tay lên trời. Hoạt động đặt các trường này.
   npBase.position.set(n.x, 0, n.z); npBase.rotation.set(0, n.rot, 0); npBase.scale.setScalar(n.scale * (n.vis === undefined ? 1 : n.vis)); npBase.updateMatrix();
   const jump = n.jump || 0, up = n.up || 0; hop += jump;
-  npPart(NP.torso, i, 0, 0.775 + hop, 0, n.shirt, first);
+  npPart(NP.torso, i, 0, 0.775 + hop, 0, n.shirt, first, { sx: n.w, sz: n.w });
   npPart(NP.neck, i, 0, 1.08 + hop, 0, n.skin, first);
   npPart(NP.head, i, 0, 1.43 + hop, 0, n.skin, first, { sx: hs, sy: hs, sz: hs });
   npPart(NP.hair, i, 0, 1.44 * (n.kind === 'kid' ? 1.015 : 1) + hop, 0, n.hair, first, { rx: -0.42, sx: hs, sy: hs, sz: hs });
@@ -768,10 +921,14 @@ function placeNpc(i, hop, clap, first) {
   npPart(NP.eyes, i * 2, -0.1 * hs, 1.42 + hop, 0.27 * hs, NP_INK, first); npPart(NP.eyes, i * 2 + 1, 0.1 * hs, 1.42 + hop, 0.27 * hs, NP_INK, first);
   for (const s of [-1, 1]) {                                              // tay: buông thõng → chắp trước ngực khi vỗ
     const cl = clap * (1 - up);                                           // giơ tay thì thôi vỗ
-    npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 - 0.19 * cl + 0.1 * up), 0.78 + hop + 0.2 * cl + 0.4 * up, 0.22 * cl, n.shirt, first,
+    npPart(NP.arms, i * 2 + (s > 0 ? 1 : 0), s * (0.29 * n.w - 0.19 * cl + 0.1 * up), 0.78 + hop + 0.2 * cl + 0.4 * up, 0.22 * cl, n.shirt, first,
       { rx: -1.25 * cl, rz: -s * (0.12 * (1 - cl) * (1 - up) + 0.35 * up) });
   }
-  if (n.seated) npPart(NP.thighs, n.li, 0, 0.52, 0.22, n.pants, first); else npPart(NP.pants, n.li, 0, 0.25 + jump, 0, n.pants, first);
+  if (n.seated) npPart(NP.thighs, n.li, 0, 0.52, 0.22, n.pants, first);
+  else npPart(NP.pants, n.li, 0, 0.25 + jump, 0, n.pants, first, n.skirt ? { sx: 0.001, sy: 0.001, sz: 0.001 } : { sx: n.w, sz: n.w });   // mặc váy thì thu nhỏ quần cho khuất
+  if (n.skirt) npPart(NP.skirt, n.si, 0, 0.27 + jump, 0, n.skirtCol, first, { sx: n.w, sz: n.w });
+  if (n.longHair) npPart(NP.hairBack, n.hi, 0, 1.3 + hop, -0.2 * hs, n.hair, first, { sx: hs, sy: hs, sz: hs });
+  if (n.glasses) npPart(NP.glasses, n.gi, 0, 1.42 + hop, 0.29 * hs, NP_INK, first, { sx: hs, sy: hs, sz: hs });
 }
 
 function buildNPCs() {
@@ -786,9 +943,13 @@ function buildNPCs() {
   const arms = mk(new THREE.CapsuleGeometry(0.065, 0.28, 3, 6), N * 2);
   const pants = mk(new THREE.CylinderGeometry(0.18, 0.2, 0.5, 8), standing);
   const thighs = mk(new THREE.BoxGeometry(0.36, 0.16, 0.46), seated);
-  Object.assign(NP, { torso, neck, head, hair, eyes, mouth, arms, pants, thighs });
-  let pi = 0, ti = 0;
-  npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; placeNpc(i, 0, 0, true); });
+  const cnt = (k) => Math.max(1, npcs.filter((n) => n[k]).length);          // InstancedMesh phụ: chỉ có instance cho người dùng chi tiết đó
+  const skirt = mk(new THREE.CylinderGeometry(0.2, 0.34, 0.5, 10), cnt('skirt'));
+  const hairBack = mk(new THREE.SphereGeometry(0.3, 8, 6).scale(1.08, 1.45, 0.62), cnt('longHair'), false);
+  const glasses = mk(mergeGeometries([new THREE.TorusGeometry(0.075, 0.014, 5, 10).translate(-0.1, 0, 0), new THREE.TorusGeometry(0.075, 0.014, 5, 10).translate(0.1, 0, 0), new THREE.BoxGeometry(0.06, 0.012, 0.012)]), cnt('glasses'), false);
+  Object.assign(NP, { torso, neck, head, hair, eyes, mouth, arms, pants, thighs, skirt, hairBack, glasses });
+  let pi = 0, ti = 0, si = 0, hi = 0, gi = 0;
+  npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; if (n.skirt) n.si = si++; if (n.longHair) n.hi = hi++; if (n.glasses) n.gi = gi++; placeNpc(i, 0, 0, true); });
   Object.values(NP).forEach(finishInst);
   document.getElementById('count').textContent = npcs.filter((n) => !n.reserve && n.arrive === undefined).length + 1;     // +1 là người chơi; NPC dự phòng và khách chưa tới cổng chưa tính
 }
@@ -811,6 +972,48 @@ function poseWalker(r, phase, s, hold) {
   if (hold) { r.armL.rotation.x = r.armR.rotation.x = -1.45; } else { r.armL.rotation.x = -sw * 0.8; r.armR.rotation.x = sw * 0.8; }
   r.body.position.y = Math.abs(Math.sin(phase)) * 0.07 * s;
 }
+/* Chi tiết nhận diện từng bộ đồ. Toàn bộ chi tiết của một nhân vật gộp thành MỘT mesh dùng màu theo đỉnh (không đổ bóng) để tốn đúng 1 draw call.
+   Gắn vào body nên các tư thế tay chân của hoạt động không bị ảnh hưởng. Toạ độ phần đầu đã cộng sẵn 0.32 (headG nằm ở y=0.32 trong body). */
+function merge(parts) {                              // parts: [[geometry, x, y, z, rx, ry, rz], ...] → một BufferGeometry
+  return mergeGeometries(parts.map(([g, x, y, z, rx = 0, ry = 0, rz = 0]) => { g.rotateX(rx); g.rotateY(ry); g.rotateZ(rz); return g.translate(x, y, z); }));
+}
+const VC = new THREE.MeshLambertMaterial({ vertexColors: true });
+function mergeC(parts) {                             // parts: [[geometry, color, x, y, z, rx, ry, rz], ...] → geometry có màu theo đỉnh
+  return mergeGeometries(parts.map(([g0, col, x, y, z, rx = 0, ry = 0, rz = 0]) => {
+    const g = g0.index ? g0.toNonIndexed() : g0;       // Icosahedron không có index, Box/Cylinder có: mergeGeometries đòi đồng nhất
+    g.rotateX(rx); g.rotateY(ry); g.rotateZ(rz); g.translate(x, y, z);
+    const n = g.attributes.position.count, c = new THREE.Color(col), a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g;
+  }));
+}
+const dBox = (w, h, d) => new THREE.BoxGeometry(w, h, d), dCyl = (a, b, h, n) => new THREE.CylinderGeometry(a, b, h, n), dIco = (r) => new THREE.IcosahedronGeometry(r, 0);
+const dCap = (r, l) => new THREE.CapsuleGeometry(r, l, 3, 6), dTorus = (r, t, n, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, 6, n, arc);
+const suitParts = (o) => [
+  [dBox(0.2, 0.3, 0.04), o.top, -0.12, 0.42, -0.14, 0.08], [dBox(0.2, 0.3, 0.04), o.top, 0.12, 0.42, -0.14, 0.08],      // đuôi áo vest
+  [dBox(0.07, 0.05, 0.02), 0xffffff, 0.15, 0.88, 0.17],                                                                // khăn túi ngực
+  [dTorus(0.11, 0.025, 12).rotateX(Math.PI / 2), 0xf4f4f4, 0, 1.02, 0],                                                // cổ áo sơ mi trắng, thấy rõ từ phía sau
+];
+const DECO = {
+  aodaiRed: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffd166, 0, 0.78, -0.24, Math.PI / 2], [dIco(0.07), 0xffd166, 0.19, 1.84, -0.12]],      // hoa văn vàng sau lưng + hoa cài tóc
+  aodaiBlue: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffffff, 0, 0.78, -0.24, Math.PI / 2], [dCap(0.06, 0.48), 0x1b1b1b, 0, 1.2, -0.44, -0.1]],   // hoa sen trắng + tóc đuôi ngựa
+  suit: (o) => suitParts(o),
+  groom: (o) => [...suitParts(o), [dIco(0.05), 0xfff4e0, -0.15, 0.9, 0.18],                                            // hoa hồng cài ngực
+    [dBox(0.09, 0.07, 0.03), 0x8a1538, -0.06, 1.0, 0.165, 0, 0, 0.25], [dBox(0.09, 0.07, 0.03), 0x8a1538, 0.06, 1.0, 0.165, 0, 0, -0.25]],   // nơ cổ đỏ đô
+  shirt: () => [-0.13, 0.13].flatMap((x) => [[dBox(0.035, 0.5, 0.012), 0x3b2a1e, x, 0.75, 0.157], [dBox(0.035, 0.5, 0.012), 0x3b2a1e, x, 0.75, -0.157]]),   // dây đeo quần
+  dressPink: () => [[dCyl(0.4, 0.54, 0.18, 14), 0xff9ac8, 0, 0.33, 0], [dTorus(0.41, 0.03, 16, Math.PI), 0xff4f9a, 0, 1.47, -0.02, -0.25]],   // tầng váy xoè + băng đô
+  dressYellow: () => [[dCyl(0.4, 0.52, 0.14, 14), 0xffe08a, 0, 0.32, 0], [dCap(0.07, 0.3), 0x1b1b1b, 0, 1.9, -0.36, -0.9], [dIco(0.07), 0xffffff, 0, 1.82, -0.3]],   // tầng váy + đuôi ngựa cao + nơ
+  bride: () => [[dTorus(0.21, 0.025, 14).rotateX(Math.PI / 2), 0xfff4e0, 0, 0.9, 0],                                    // dải eo
+    ...[...Array(7)].map((_, k) => { const a = Math.PI * (0.1 + k * 0.133); return [dIco(0.055), 0xff9ab8, Math.cos(a) * 0.37, 1.77 + Math.sin(a) * 0.04, Math.sin(a) * 0.3 - 0.1]; })],   // vòng hoa vắt ngang đỉnh đầu
+};
+function addDeco(body, headG, o) {
+  const parts = DECO[o.deco] ? DECO[o.deco](o) : null; if (!parts) return;
+  const m = new THREE.Mesh(mergeC(parts), VC); m.castShadow = m.receiveShadow = false; body.add(m);
+  if (o.deco === 'bride') {                          // voan: một tấm trong suốt rủ sau đầu
+    const veil = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.25), new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+    veil.position.set(0, 0.9, -0.46); veil.rotation.x = -0.14; veil.castShadow = false; headG.add(veil);
+  }
+}
 // Dựng một nhân vật chibi (dùng cho người chơi và cô dâu chú rể)
 function buildCharacter(o, name) {
   const g = new THREE.Group(), skin = M(0xffd7b5), hairMat = M(o.hair), topMat = M(o.top), botMat = M(o.bottom), armMat = M(o.arm);
@@ -824,7 +1027,7 @@ function buildCharacter(o, name) {
   const armL = mkLimb(armGeo, armMat, -0.31, 0.97, -0.1), armR = mkLimb(armGeo, armMat, 0.31, 0.97, -0.1);
   const mkElbow = (arm) => { const e = new THREE.Group(); e.position.y = -0.2; arm.add(e); put(e, foreGeo, armMat, 0, -0.1, 0); return e; };   // khuỷu tay: cẳng tay xoay riêng, để thẳng thì giống cánh tay liền
   const elbowL = mkElbow(armL), elbowR = mkElbow(armR);
-  const handGeo = new THREE.SphereGeometry(0.075, 8, 6), shoeGeo = new THREE.BoxGeometry(0.16, 0.07, 0.25), shoeMat = M(0x2b2230);
+  const handGeo = new THREE.SphereGeometry(0.075, 8, 6), shoeGeo = new THREE.BoxGeometry(0.16, 0.07, 0.25), shoeMat = M(o.shoe || 0x2b2230);
   for (const e of [elbowL, elbowR]) put(e, handGeo, skin, 0, -0.2, 0.01);                                         // bàn tay
   for (const l of [legL, legR]) put(l, shoeGeo, shoeMat, 0, -0.47, 0.04);                                    // giày
 
@@ -832,8 +1035,13 @@ function buildCharacter(o, name) {
     put(body, new THREE.CylinderGeometry(0.2, 0.3, 0.75, 10), topMat, 0, 0.66, 0);
     put(body, new THREE.CylinderGeometry(0.15, 0.17, 0.06, 10), M(0xffd166), 0, 1.03, 0);
   } else if (o.kind === 'dress') {
-    put(body, new THREE.CylinderGeometry(0.17, 0.42, 0.7, 12), topMat, 0, 0.62, 0);
-    put(body, new THREE.BoxGeometry(0.26, 0.1, 0.12), M(0xffffff), 0, 0.82, -0.2);            // nơ sau lưng
+    if (o.long) {                                         // váy cưới dài chấm đất
+      put(body, new THREE.CylinderGeometry(0.17, 0.52, 0.98, 16), topMat, 0, 0.5, 0);
+      put(body, new THREE.TorusGeometry(0.52, 0.025, 6, 20).rotateX(Math.PI / 2), M(0xfff4e0), 0, 0.03, 0, false, false);
+    } else {
+      put(body, new THREE.CylinderGeometry(0.17, 0.42, 0.7, 12), topMat, 0, 0.62, 0);
+      put(body, new THREE.BoxGeometry(0.26, 0.1, 0.12), M(0xffffff), 0, 0.82, -0.2);          // nơ sau lưng
+    }
   } else if (o.kind === 'suit') {
     put(body, new THREE.BoxGeometry(0.5, 0.52, 0.3), topMat, 0, 0.75, 0);
     put(body, new THREE.BoxGeometry(0.2, 0.32, 0.02), M(0xffffff), 0, 0.8, 0.155);
@@ -855,6 +1063,8 @@ function buildCharacter(o, name) {
   }
   put(headG, new THREE.SphereGeometry(0.035, 8, 6), M(0xe8b592), 0, 1.07, 0.375, false, false);                    // mũi
   const smile = put(headG, new THREE.TorusGeometry(0.07, 0.014, 6, 14, Math.PI), M(0x9b2c2c), 0, 1.03, 0.358, false, false); smile.rotation.z = Math.PI;   // miệng cười
+
+  if (o.deco) addDeco(body, headG, o);
 
   // Bảng tên trên đầu
   const tex = canvasTex(512, 96, (c, w, h) => {
@@ -998,6 +1208,7 @@ const party = {
 };
 
 const spots = [], markers = [];                      // điểm kích hoạt hoạt động + vòng sáng chỉ đường
+const played = new Set();                            // nhãn các hoạt động người chơi đã vào (chỉ để hiện mục tiêu tiếp theo)
 let nearSpot = null;
 function addSpot(s) {
   spots.push(s);
@@ -1021,9 +1232,11 @@ function updateSpots() {
   for (const s of spots) { const d = Math.hypot(player.x - s.x, player.z - s.z); if (d < s.r && d < bd) { best = s; bd = d; } }
   if (best === nearSpot) return;
   nearSpot = best; const b = $('actBtn'); b.style.display = best ? 'block' : 'none'; if (best) b.textContent = best.label;
+  const dsc = $('actDesc'); dsc.style.display = best ? 'block' : 'none'; if (best) dsc.textContent = SPOT_INFO[best.label] || '';
 }
 function enterAct(a, spot) {
-  a.spot = spot; G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; joy.style.display = 'none';
+  a.spot = spot; G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; $('actDesc').style.display = 'none'; joy.style.display = 'none';
+  if (spot) played.add(spot.label);
   input.jx = input.jy = 0; stick.u = 0; keys.clear(); a.enter();
 }
 function exitAct() {
@@ -1068,8 +1281,8 @@ function makeTray() {
 /* ---- Cô dâu chú rể trên sân khấu (đích đến của mâm quả) ---- */
 function buildCouple() {
   const defs = [
-    [{ kind: 'suit', top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false }, 'Chú rể Quốc Tuân', -0.85, 0.15],
-    [{ kind: 'dress', top: 0xffffff, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: true }, 'Cô dâu Ngọc Khánh', 0.85, -0.15],
+    [{ kind: 'suit', top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false, deco: 'groom', shoe: 0x15151c }, 'Chú rể Quốc Tuân', -0.85, 0.15],
+    [{ kind: 'dress', long: true, top: 0xffffff, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: true, deco: 'bride', shoe: 0xffffff }, 'Cô dâu Ngọc Khánh', 0.85, -0.15],
   ];
   for (const [o, name, x, ry] of defs) {
     const c = buildCharacter(o, name);
@@ -1393,7 +1606,8 @@ const audio = {
     } catch { /* đã dừng */ }
   },
 };
-$('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
+$('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.setAttribute('aria-pressed', String(audio.muted)); e.currentTarget.blur(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) audio.resume(); });   // quay lại tab: trình duyệt có thể đã treo âm thanh
 
 /* ---- Không khí tiệc: tiếng ồn đám đông, cụng ly và tiếng cười thỉnh thoảng (không có nhạc nền: đám đông đã đủ ồn) ----
    Nền đám đông là file songs/Tiếng ồn ào trong quán nhậu.mp3 (khoá 'crowd'). Không có file thì dùng tiếng người nói xa xa tổng hợp. Mức to nhỏ tự hạ theo hoạt động. */
@@ -1455,7 +1669,7 @@ function updateCrowd(dt, t) {
   }
   markNpcDirty();
 }
-function markNpcDirty() { for (const k of ['torso', 'neck', 'head', 'hair', 'eyes', 'mouth', 'arms', 'pants']) NP[k].instanceMatrix.needsUpdate = true; }
+function markNpcDirty() { for (const k of ['torso', 'neck', 'head', 'hair', 'eyes', 'mouth', 'arms', 'pants', 'skirt', 'hairBack', 'glasses']) NP[k].instanceMatrix.needsUpdate = true; }
 
 /* =====================================================================
    14. HOẠT ĐỘNG 2: KARAOKE (rhythm game ~30 giây, 3 làn)
@@ -2028,7 +2242,7 @@ const toastAct = {
     audio.loadSfx('cheers').then((buf) => { if (buf) this.cheerDur = clamp(buf.len, 1.6, 7); });
     this.count();
   },
-  count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn · lại gần bàn rồi bấm nút chúc rượu`; },
+  count() { $('toastCount').textContent = `Chúc rượu ${this.visited.size}/${tablePos.length} bàn`; },
   nearest() {
     let best = -1, bd = TOAST.reach;
     tablePos.forEach((p, i) => { const d = Math.hypot(player.x - p.x, player.z - p.z); if (d < bd) { bd = d; best = i; } });
@@ -2528,12 +2742,39 @@ OUTFITS.forEach((o, i) => {
 function showHint(text, ms = 7000) {
   const h = $('hint'); h.textContent = text; h.style.opacity = 1; clearTimeout(showHint.t); showHint.t = setTimeout(() => { h.style.opacity = 0; }, ms);
 }
+/* ---- Mục tiêu tiếp theo + mô tả ngắn cạnh nút hành động ---- */
+const SPOT_INFO = {
+  'Bưng tráp': 'Bưng mâm quả lên tặng cô dâu chú rể',
+  'Hát karaoke': 'Chọn bài và hát trước sân khấu',
+  'Bỏ phong bì': 'Gửi lời chúc lên màn LED',
+  'Rót tháp ly': 'Rót rượu đầy tháp ly',
+  'Bắt hoa cưới': 'Bắt bó hoa cô dâu tung',
+  'Xem trao nhẫn': 'Đứng xem cặp đôi trao nhẫn',
+  'Xem cắt bánh': 'Đứng xem cắt bánh cưới',
+};
+const ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+const _fwd = new THREE.Vector3();
+const goalEl = $('goal');
+function setGoal(text) { if (goalEl.textContent !== text) goalEl.textContent = text; goalEl.style.display = text ? 'block' : 'none'; }
+function updateGoal() {
+  if (!G.started || G.act) { setGoal(''); return; }
+  let best = null, bd = 1e9;
+  for (const s of spots) { if (played.has(s.label)) continue; const d = Math.hypot(player.x - s.x, player.z - s.z); if (d < bd) { best = s; bd = d; } }
+  if (!best) { setGoal('Bạn đã chơi đủ ' + spots.length + ' hoạt động. Đi chúc rượu các bàn nhé!'); return; }
+  const tail = ' · đã thử ' + played.size + '/' + spots.length;
+  if (bd < best.r) { setGoal('Bấm nút bên phải: ' + best.label + tail); return; }
+  camera.getWorldDirection(_fwd);
+  const dx = best.x - player.x, dz = best.z - player.z;
+  const ang = Math.atan2(_fwd.x * dz - _fwd.z * dx, _fwd.x * dx + _fwd.z * dz);   // dương: mục tiêu bên phải hướng nhìn
+  setGoal(ARROWS[((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8] + ' ' + best.label + ' · ' + Math.round(bd) + ' m' + tail);
+}
+setInterval(updateGoal, 300);
 function enterParty() {
   if (!G.ready || G.started) return;
   G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
   store.set('name', $('nameIn').value.trim()); store.set('outfit', G.outfit);
   audio.init(); ambience.start();                   // cú chạm này mở khoá âm thanh
-  Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k), 400 + i * 600));   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
+  Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k).then((b) => { if (!b && !enterParty.warned) { enterParty.warned = true; showHint('Một vài âm thanh chưa nạp được, bạn vẫn chơi bình thường nhé', 5000); } }), 400 + i * 600));   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
   buildPlayer(OUTFITS[G.outfit], G.name);
   cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
   G.started = true;
@@ -2541,7 +2782,7 @@ function enterParty() {
   $('hud').style.display = 'block'; if (isTouch) joy.style.display = 'block';
   if (showFps) fpsEl.style.display = 'block';
   showHint(isTouch ? 'Kéo cần bên trái để đi bộ, vuốt màn hình để xoay nhìn quanh' : 'Bấm W, A, S, D hoặc phím mũi tên để đi, kéo chuột để xoay nhìn quanh');
-  setTimeout(() => { if (!G.act) showHint('Ra bàn mâm quả ngay trong cổng, bấm "Bưng tráp" nhé', 8000); }, 7500);
+  if (!window.SFX_DATA) setTimeout(() => showHint('Chưa tải được âm thanh, bạn vẫn chơi bình thường nhé', 5000), 1200);
 }
 $('go').addEventListener('click', enterParty);
 $('nameIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterParty(); });
@@ -2549,7 +2790,7 @@ $('nameIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterPar
 buildWorld(); buildCouple(); planNPCs(); buildNPCs();
 cam.look.set(0, 1.5, -4); camera.position.set(0, 10, 28);
 requestAnimationFrame(loop);
-G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
+G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc'; if (window.__loadDone) window.__loadDone();
 
 // Gỡ lỗi từ console: window.__ddc
 window.__ddc = { ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
