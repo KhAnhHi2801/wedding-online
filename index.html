@@ -848,8 +848,43 @@ function buildOutside() {
   [lans, glow, poles, heads, dashes, boxes, hedge, blooms].forEach(cull);
 }
 
+/* ---- Nhà vệ sinh: góc sân bên phải, giữa rạp và hàng rào (vùng trống, không đè điểm hoạt động nào). Cửa quay ra phía rạp (-x).
+   3 mesh: thân (gộp, màu theo đỉnh), cánh cửa (gắn vào scene vì có chuyển động), biển WC (canvas, vẽ lại khi đổi TRỐNG/CÓ NGƯỜI). ---- */
+const WC = { x: 12.4, z: 15.2, w: 2.0, d: 1.9, h: 2.45, doorW: 0.84, doorH: 1.95, stand: { x: 10.4, z: 15.2 }, inside: { x: 12.3, z: 15.2 }, door: null, setSign: null };
+function buildToilet() {
+  const { x, z, w, d, h, doorW, doorH } = WC, t = 0.08, side = (w - doorW) / 2, front = -d / 2 + t / 2;
+  const body = mergeC([
+    [dBox(d + 0.1, 0.12, w + 0.1), 0xb3a999, 0, 0.06, 0], [dBox(d - 0.1, 0.02, w - 0.1), 0xcfc7b8, 0, 0.1, 0],                 // bệ và nền
+    [dBox(t, h, w), 0xfff0dc, d / 2 - t / 2, h / 2, 0],                                                                          // tường sau
+    [dBox(d, h, t), 0xfff0dc, 0, h / 2, w / 2 - t / 2], [dBox(d, h, t), 0xfff0dc, 0, h / 2, -w / 2 + t / 2],                      // hai tường bên
+    [dBox(t, h, side), 0xfff0dc, front, h / 2, -(doorW / 2 + side / 2)], [dBox(t, h, side), 0xfff0dc, front, h / 2, doorW / 2 + side / 2],   // tường trước, chừa ô cửa
+    [dBox(t, h - doorH, doorW), 0xfff0dc, front, doorH + (h - doorH) / 2, 0],                                                    // dầm trên cửa
+    [dBox(d + 0.1, 0.08, w + 0.1), 0xffd166, 0, h - 0.06, 0],                                                                    // viền vàng
+    [dBox(d + 0.5, 0.12, w + 0.5), 0xa31230, 0, h + 0.06, 0],                                                                    // mái đỏ cùng tông rạp
+    [dBox(0.1, 0.85, w + 0.5), 0xa31230, -(d + 0.5) / 2 + 0.05, h + 0.545, 0],                                                   // thành mái đỡ biển
+  ]);
+  put(world, body, VC, x, 0, z);
+  const leaf = mergeC([[dBox(0.06, doorH, doorW - 0.02), 0x8a5a38, 0, doorH / 2, -doorW / 2], [dIco(0.04), 0xffd166, -0.05, 1.0, -doorW + 0.12]]);   // bản lề ở mép +z, mở ra phía -x
+  const door = new THREE.Group(); door.position.set(x + front, 0, z + doorW / 2);
+  const dm = new THREE.Mesh(leaf, VC); dm.castShadow = false; dm.receiveShadow = true; door.add(dm); scene.add(door); WC.door = door;
+  const signTex = canvasTex(256, 128, () => {});
+  WC.setSign = (busy) => {
+    const { g, c } = signTex.userData, W = c.width, H = c.height;
+    g.fillStyle = '#0b3d6b'; g.fillRect(0, 0, W, H); g.strokeStyle = '#ffd166'; g.lineWidth = 6; g.strokeRect(5, 5, W - 10, H - 10);
+    g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 58px ${FONT}`; g.fillText('WC', W / 2, 38);
+    g.font = `bold 22px ${FONT}`; g.fillStyle = '#cfe8ff'; g.fillText('Nhà vệ sinh', W / 2, 78);
+    g.fillStyle = busy ? '#d7263d' : '#2a9d5c'; g.fillRect(40, 94, W - 80, 24);
+    g.fillStyle = '#fff'; g.font = `bold 17px ${FONT}`; g.fillText(busy ? 'ĐANG CÓ NGƯỜI' : 'TRỐNG', W / 2, 107);
+    signTex.needsUpdate = true;
+  };
+  WC.setSign(false);
+  const sign = put(world, new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshBasicMaterial({ map: signTex }), x - (d + 0.5) / 2 - 0.01, h + 0.545, z, false, false);
+  sign.rotation.y = -Math.PI / 2;                                                                                                // hướng ra phía rạp
+  addBox(x - d / 2 - 0.12, x + d / 2 + 0.12, z - w / 2 - 0.12, z + w / 2 + 0.12);
+}
+
 function buildWorld() {
-  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildOutside(); buildActivitySpots();
+  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildOutside(); buildToilet(); buildActivitySpots();
   world.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); });       // vật tĩnh: khỏi tính lại ma trận mỗi khung
 }
 
@@ -1235,6 +1270,7 @@ function updateSpots() {
   const dsc = $('actDesc'); dsc.style.display = best ? 'block' : 'none'; if (best) dsc.textContent = SPOT_INFO[best.label] || '';
 }
 function enterAct(a, spot) {
+  if (a.canEnter && !a.canEnter()) return;            // hoạt động có thể từ chối (ví dụ đang trong thời gian chờ)
   a.spot = spot; G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; $('actDesc').style.display = 'none'; joy.style.display = 'none';
   if (spot) played.add(spot.label);
   input.jx = input.jy = 0; stick.u = 0; keys.clear(); a.enter();
@@ -1316,7 +1352,8 @@ function buildActivitySpots() {
   addSpot({ x: -3.4, z: -10.6, r: 1.6, label: 'Rót tháp ly', act: pourAct });             // trước tháp ly bên trái sân khấu
   addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });
   addSpot({ x: -4.6, z: -13.6, r: 1.5, label: 'Xem trao nhẫn', act: ceremonyAct, kind: 'ring' });   // góc trái trước sân khấu
-  addSpot({ x: 4.6, z: -13.6, r: 1.5, label: 'Xem cắt bánh', act: ceremonyAct, kind: 'cake' });     // góc phải trước sân khấu, đối xứng với chỗ xem trao nhẫn          // giữa thảm đỏ, cách điểm karaoke ~5m
+  addSpot({ x: 4.6, z: -13.6, r: 1.5, label: 'Xem cắt bánh', act: ceremonyAct, kind: 'cake' });
+  addSpot({ x: WC.stand.x - 0.1, z: WC.stand.z, r: 1.7, label: 'Đi vệ sinh', act: toiletAct });                     // trước cửa nhà vệ sinh     // góc phải trước sân khấu, đối xứng với chỗ xem trao nhẫn          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
 /* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
@@ -1343,6 +1380,7 @@ function balanceInput() {                            // gộp phím A/D, kéo ng
 /* ---- Hoạt động 1: Bưng tráp ----
    Mâm nghiêng theo con lắc ngược: th'' = inst*th - damp*th' + nhiễu + gain*u.
    Người chơi tự động đi dọc thảm, chỉ lo giữ thăng bằng. Rơi → làm lại từ cổng, mỗi lần rơi nhiễu giảm 10% (tối đa 30%). */
+const GIFT = { slow: 1.7 };            // hệ số làm chậm cảnh giao mâm quả và lì xì (1 = nhịp cũ, 4,4 giây; càng lớn càng chậm)
 const TRAY = { speed: 2.8, z0: 17.0, z1: -13.3, fail: 0.8, inst: 0.7, damp: 2.0, gain: 7 };
 const trayAct = {
   tray: null, droppers: [], vel: [], spin: [],
@@ -1443,10 +1481,11 @@ const trayAct = {
   },
   /* Cảnh nhận lì xì (~4,3 s): người chơi quay sang, hạ mâm → mẹ cô dâu bước tới, đưa bao đỏ bằng một tay → nhận bằng hai tay, cúi chào → giơ bao lên khoe. */
   giftStep(dt) {
-    const t = (this.gt += dt), pr = player.rig, mr = MOM.rig, env = MOM.env, k = (a, b) => clamp((t - a) / (b - a), 0, 1);
+    const t = (this.gt += dt / GIFT.slow), pr = player.rig, mr = MOM.rig, env = MOM.env, k = (a, b) => clamp((t - a) / (b - a), 0, 1);
     player.rot = lerp(Math.PI, Math.PI / 2, ease(k(0, 0.7))); player.group.rotation.y = player.rot;
     const cz = ease(k(0, 1.6)); cam.yaw = lerp(0, 0.2, cz); cam.pitch = lerp(0.58, 0.3, cz); cam.dist = lerp(6.2, 4.0, cz); cam.lookY = lerp(CFG.camHeight, 1.25, cz);   // máy quay sang ngang để thấy hai người nhìn nhau
-    if (t < 0.5) poseWalker(pr, 0, 0, true); else { this.tray.group.visible = false; poseWalker(pr, 0, 0, false); }
+    if (t < 1.0) { poseWalker(pr, 0, 0, true); this.tray.group.position.y = lerp(1.05, 0.8, ease(k(0.2, 1.0))); }   // hạ mâm từ từ rồi mới đặt xuống
+    else { this.tray.group.visible = false; poseWalker(pr, 0, 0, false); }
     const w = k(0.5, 1.9); MOM.g.position.x = lerp(MOM.rest.x, MOM.meet.x, ease(w)); MOM.g.position.z = lerp(MOM.rest.z, MOM.meet.z, ease(w));
     const face = Math.atan2(player.x - MOM.g.position.x, player.z - MOM.g.position.z), dFace = Math.atan2(Math.sin(face - MOM.restRot), Math.cos(face - MOM.restRot));
     MOM.g.rotation.y = MOM.restRot + dFace * ease(k(0.5, 1.3));                                               // bước tới và quay mặt về phía người chơi, tay đưa mới đúng hướng
@@ -1492,6 +1531,7 @@ const trayAct = {
 const SFX_LEVEL = {
   norm: { pour: 2.8, applause: 1, cheers: 0.38, bouquetCatch: 0.31, bouquetMiss: 1.5, bouquetWait: 0.28, crowd: 0.26 },
   song: { song1: 0.98, song2: 0.63, song3: 0.39 },
+  synth: { flush: 0.45, doorOpen: 0.2, doorClose: 0.12 },                                    // tiếng tổng hợp của nhà vệ sinh (biên độ đỉnh trước master)
   duckDb: { karaoke: -9, calm: -10, ceremony: -6, other: -4 },       // đám đông hạ bao nhiêu dB khi có hoạt động
   limiter: { threshold: -8, knee: 4, ratio: 20, attack: 0.002, release: 0.2 },   // chặn méo khi nhiều tiếng chồng nhau (tiếng rót có đỉnh rất cao)
 };
@@ -1584,6 +1624,20 @@ const audio = {
     }
   },
   laugh() { for (let i = 0; i < 7; i++) this.tone(230 + Math.random() * 90, 0.1, 'sawtooth', 0.045, i * 0.13); this.noise(0.9, 0.05, 2500); },   // tiếng cười ồ tổng hợp
+  flush() {                                         // xả nước: nhiễu dải giữa quét lên rồi xuống, cuối có vài tiếng ùng ục khi nước rút
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + 0.02, V = SFX_LEVEL.synth.flush, D = 2.6, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true; f.type = 'bandpass'; f.Q.value = 0.7;
+    f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(2200, t + 0.5); f.frequency.exponentialRampToValueAtTime(700, t + D);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(V, t + 0.25); g.gain.setValueAtTime(V, t + 1.2); g.gain.exponentialRampToValueAtTime(0.0001, t + D);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + D + 0.05);
+    for (let i = 0; i < 4; i++) this.tone(160 - i * 14, 0.16, 'sine', V * 0.5, 1.5 + i * 0.28);
+  },
+  door(open) {                                      // mở: kẽo kẹt ngắn; đóng: tiếng "cạch" trầm kèm chốt
+    if (!this.ctx) return; const L = SFX_LEVEL.synth;
+    if (open) { this.tone(210, 0.2, 'sawtooth', L.doorOpen); this.tone(150, 0.28, 'sawtooth', L.doorOpen, 0.1); }
+    else { this.tone(90, 0.16, 'sine', L.doorClose * 2.2); this.noise(0.05, L.doorClose * 1.2, 800); }
+  },
   /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
   sfxBuf: {}, sfxLive: {},
@@ -2427,6 +2481,56 @@ $('wishDoneBtn').addEventListener('click', (e) => { e.currentTarget.blur(); wish
 
 
 /* =====================================================================
+   18b. ĐI VỆ SINH
+   Nhân vật đi tới cửa, bước vào, cửa đóng lại, có tiếng xả nước, rồi bước ra. Mọi thứ diễn ra sau cánh cửa, không có hình ảnh nhạy cảm.
+   Lần đầu được ít điểm Vui, các lần sau gần như không có; sau mỗi lần có thời gian chờ để không bấm liên tục.
+   ===================================================================== */
+const TOILET = { first: 15, again: 2, cooldownMs: 20000, open: 1.5, T: { walk: 0.8, open: 1.3, inEnd: 2.1, closeEnd: 2.6, flush: 3.1, reopen: 4.4, reopenEnd: 4.9, outEnd: 5.9, end: 6.4 } };
+const TOILET_LINES = ['Nhẹ cả người!', 'Đã quá, quay lại tiệc thôi!', 'Sạch sẽ thơm tho, sẵn sàng chúc rượu!', 'Nhẹ nhõm hẳn, ăn tiếp được rồi!'];
+const toiletAct = {
+  t: 0, coolUntil: 0, visits: 0, p0: { x: 0, z: 0, rot: 0 }, dRot: 0, fired: {},
+  canEnter() {
+    if (performance.now() >= this.coolUntil) return true;
+    showHint('Vừa ghé xong mà, chờ một chút rồi hãy quay lại nhé', 3000); return false;
+  },
+  enter() {
+    this.t = 0; this.fired = {}; const r0 = player.rot; this.p0 = { x: player.x, z: player.z, rot: r0 };
+    this.dRot = Math.atan2(Math.sin(Math.PI / 2 - r0), Math.cos(Math.PI / 2 - r0));            // quay mặt về phía cửa theo đường ngắn nhất
+    cam.yaw = -Math.PI / 2 - 0.45; cam.pitch = 0.3; cam.dist = 6.6; cam.lookY = 1.75;           // máy quay đứng phía rạp, nhìn thấy cửa và biển
+    showHint('Xin phép đi một chút nhé…', 2500);
+  },
+  exit() {
+    player.group.visible = true; WC.door.rotation.y = 0; WC.setSign(false); poseWalker(player.rig, 0, 0, false);
+  },
+  once(key, fn) { if (!this.fired[key]) { this.fired[key] = true; fn(); } },
+  update(dt) {
+    const T = (this.t += dt), W = TOILET.T, k = (a, b) => clamp((T - a) / (b - a), 0, 1), S = WC.stand, I = WC.inside;
+    let x = S.x, z = S.z, rot = Math.PI / 2, th = 0, walk = false;
+    if (T < W.walk) { const e = ease(k(0, W.walk)); x = lerp(this.p0.x, S.x, e); z = lerp(this.p0.z, S.z, e); rot = this.p0.rot + this.dRot * e; walk = true; }
+    else if (T < W.open) { this.once('o1', () => audio.door(true)); th = TOILET.open * ease(k(W.walk, W.open)); }
+    else if (T < W.inEnd) { th = TOILET.open; x = lerp(S.x, I.x, ease(k(W.open, W.inEnd))); walk = true; }
+    else if (T < W.closeEnd) { x = I.x; th = TOILET.open * (1 - ease(k(W.inEnd, W.closeEnd))); if (T >= W.closeEnd - 0.12) this.once('c1', () => audio.door(false)); }   // tiếng đóng đúng lúc cánh cửa chạm khung
+    else if (T < W.reopen) {
+      x = I.x; if (!this.fired.hide) { this.fired.hide = true; player.group.visible = false; WC.setSign(true); }
+      if (T >= W.flush) this.once('fl', () => audio.flush());
+    } else if (T < W.reopenEnd) {
+      x = I.x; rot = -Math.PI / 2; th = TOILET.open * ease(k(W.reopen, W.reopenEnd)); this.once('o2', () => { audio.door(true); WC.setSign(false); });
+      if (T > W.reopen + 0.2) player.group.visible = true;
+    } else if (T < W.outEnd) { th = TOILET.open; rot = -Math.PI / 2; x = lerp(I.x, S.x, ease(k(W.reopenEnd, W.outEnd))); walk = true; }
+    else { th = TOILET.open * (1 - ease(k(W.outEnd, W.end))); rot = -Math.PI / 2; if (T >= W.end - 0.12) this.once('c2', () => audio.door(false)); }
+    z = T < W.walk ? z : S.z;
+    player.x = x; player.z = z; player.rot = rot; player.group.position.set(x, 0, z); player.group.rotation.y = rot;
+    WC.door.rotation.y = th; poseWalker(player.rig, T * 9, walk ? 1 : 0, false);
+    if (T >= W.end) this.finish();
+  },
+  finish() {
+    const pts = this.visits++ === 0 ? TOILET.first : TOILET.again; party.add(pts);
+    this.coolUntil = performance.now() + TOILET.cooldownMs; exitAct();
+    showHint(pick(TOILET_LINES) + ' (+' + pts + ' Vui)', 5000);
+  },
+};
+
+/* =====================================================================
    19. TRAO NHẪN VÀ CẮT BÁNH (chỉ đứng xem)
    Người chơi chủ động ra vòng sáng để xem, nên không bao giờ bị cắt ngang lúc đang chơi hoạt động khác (đồng hồ chỉ nhắc nhẹ một lần).
    Máy quay chuyển sang cảnh quay riêng (cam.free) qua một nhịp tối màn, cô dâu chú rể diễn theo dòng thời gian T (giây kể từ lúc sáng lại). Có nút Bỏ qua.
@@ -2773,6 +2877,7 @@ const SPOT_INFO = {
   'Bắt hoa cưới': 'Bắt bó hoa cô dâu tung',
   'Xem trao nhẫn': 'Đứng xem cặp đôi trao nhẫn',
   'Xem cắt bánh': 'Đứng xem cắt bánh cưới',
+  'Đi vệ sinh': 'Ghé nhà vệ sinh cho nhẹ người',
 };
 const ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
 const _fwd = new THREE.Vector3();
@@ -2815,7 +2920,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc'; if (window.__loadDone) window.__loadDone();
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
+window.__ddc = { toiletAct, WC, TOILET, ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
