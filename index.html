@@ -61,6 +61,24 @@
   /* ---------- Sự kiện theo giờ: trao nhẫn, cắt bánh ---------- */
   #cerUI { position:absolute; inset:0; display:none; pointer-events:none; }
   #cerFade { position:absolute; inset:0; background:#000; opacity:1; transition:opacity .5s; }
+  #luckyUI { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:7; background:rgba(0,0,0,.35); }
+  #luckyUI .box { width:min(88vw,340px); padding:18px 16px; border-radius:18px; border:1px solid rgba(255,209,102,.4); background:#2e0a20; color:#fff; text-align:center; pointer-events:auto; }
+  #luckyUI h2 { margin:0 0 4px; font-size:20px; color:#ffd166; }
+  #luckyUI p { margin:0 0 12px; font-size:14px; }
+  #luckyUI .envs { display:flex; gap:10px; justify-content:center; margin-bottom:12px; }
+  #luckyUI .env { width:72px; height:96px; font-size:44px; border-radius:10px; border:2px solid #ffd166; background:linear-gradient(180deg,#e63946,#b3122f); cursor:pointer; touch-action:manipulation; }
+  #luckyUI .env:active { transform:scale(.95); }
+  #luckyUI .quit { min-height:44px; padding:0 16px; border:0; border-radius:22px; background:rgba(255,255,255,.14); color:#fff; cursor:pointer; touch-action:manipulation; }
+  #photoUI { position:absolute; inset:0; display:none; pointer-events:none; z-index:7; }
+  #photoFlash { position:absolute; inset:0; background:#fff; opacity:0; }
+  #photoCount { position:absolute; left:50%; top:34%; transform:translate(-50%,-50%); font-size:min(34vw,150px); font-weight:900; color:#fff; text-shadow:0 4px 24px rgba(0,0,0,.65); }
+  #photoCard { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-2.5deg); width:min(78vw,340px); padding:12px 12px 14px; border-radius:6px; background:#fffdf7;
+    box-shadow:0 12px 40px rgba(0,0,0,.55); display:none; pointer-events:auto; text-align:center; }
+  #photoCard img { display:block; width:100%; max-height:50vh; object-fit:cover; background:#222; }
+  #photoCard p { margin:10px 0 8px; color:#4a0d1a; font-weight:700; font-size:14px; }
+  #photoCard .row { display:flex; gap:8px; justify-content:center; }
+  #photoCard button { min-height:44px; padding:0 16px; border-radius:22px; border:0; font-weight:800; cursor:pointer; touch-action:manipulation; background:#ece3d2; color:#4a0d1a; }
+  #photoCard button.main { background:linear-gradient(180deg,#ffe28a,#ffb703); }
   #cerCap { position:absolute; left:50%; bottom:calc(max(26px,env(safe-area-inset-bottom)) + 64px); transform:translateX(-50%); width:min(88vw,520px); text-align:center;
     background:rgba(46,10,32,.8); border:1px solid rgba(255,209,102,.45); border-radius:16px; padding:12px 16px; font-size:16px; font-weight:700; color:#ffe9a8; opacity:0; transition:opacity .4s; }
   #cerSkip { position:absolute; right:max(14px,env(safe-area-inset-right)); bottom:max(26px,env(safe-area-inset-bottom)); pointer-events:auto; padding:10px 18px; font-size:14px;
@@ -84,6 +102,9 @@
   #result button { flex:1; padding:13px 8px; font-size:15px; font-weight:700; border-radius:12px; border:0; cursor:pointer; touch-action:manipulation; }
   #resAgain { background:rgba(255,255,255,.14); color:#fff; }
   #resDone { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
+  #lite { position:absolute; top:calc(max(10px,env(safe-area-inset-top)) + 84px); right:max(10px,env(safe-area-inset-right)); width:38px; height:38px;
+    border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(46,10,32,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
+  #lite[aria-pressed="true"] { background:rgba(255,183,3,.85); color:#4a0d1a; }
   #mute { position:absolute; top:calc(max(10px,env(safe-area-inset-top)) + 38px); right:max(10px,env(safe-area-inset-right)); width:38px; height:38px;
     border-radius:50%; border:1px solid rgba(255,209,102,.4); background:rgba(46,10,32,.7); color:#fff; font-size:17px; cursor:pointer; pointer-events:auto; touch-action:manipulation; }
   #rhythm { position:absolute; left:50%; bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); transform:translateX(-50%); width:min(90vw,360px); height:min(50vh,400px);
@@ -181,6 +202,7 @@
   #toastCount { left:max(10px,env(safe-area-inset-left)); transform:none; top:calc(max(10px,env(safe-area-inset-top)) + 90px); padding:5px 12px; font-size:12.5px;
     border:1px solid rgba(255,209,102,.4); color:var(--cream); }
   #mute { width:44px; height:44px; z-index:5; top:calc(max(10px,env(safe-area-inset-top)) + 40px); font-size:19px; }
+  #lite { width:44px; height:44px; z-index:5; top:calc(max(10px,env(safe-area-inset-top)) + 92px); font-size:19px; }
   #actDesc { position:absolute; right:max(18px,env(safe-area-inset-right)); bottom:calc(max(36px,env(safe-area-inset-bottom)) + 72px); display:none; max-width:min(62vw,260px);
     text-align:right; padding:5px 12px; border-radius:12px; background:var(--pill); font-size:12.5px; color:var(--cream); pointer-events:none; }
   /* Vùng chạm tối thiểu 44 px */
@@ -263,6 +285,7 @@
   <div id="goal"></div>
   <div id="fps"></div>
   <button id="mute" type="button" aria-label="Bật/tắt tiếng" aria-pressed="false">🔊</button>
+  <button id="lite" type="button" aria-label="Chế độ tiết kiệm cho máy yếu" aria-pressed="false" title="Chế độ tiết kiệm">⚡</button>
   <canvas id="rhythm"></canvas>
   <button id="karaQuit" type="button">Ngại quá, không hát nữa</button>
   <div id="party"><span>Không khí tiệc</span><div class="bar"><div id="partyFill"></div></div></div>
@@ -290,6 +313,9 @@
     <div id="toastMsg"></div>
     <button id="toastBtn" type="button">Chúc rượu</button>
   </div>
+  <div id="luckyUI"><div class="box"><h2>Bốc thăm may mắn</h2><p>Chọn một bao lì xì nhé!</p><div class="envs"><button class="env" type="button" data-i="0" aria-label="Bao lì xì 1">🧧</button><button class="env" type="button" data-i="1" aria-label="Bao lì xì 2">🧧</button><button class="env" type="button" data-i="2" aria-label="Bao lì xì 3">🧧</button></div><button id="luckyQuit" class="quit" type="button">Để lúc khác</button></div></div>
+  <div id="photoUI"><div id="photoFlash"></div><div id="photoCount"></div>
+    <div id="photoCard"><img id="photoImg" alt="Ảnh kỷ niệm"><p id="photoCap"></p><div class="row"><button id="photoAgain" type="button">Chụp lại</button><button id="photoDone" type="button" class="main">Xong</button></div></div></div>
   <div id="cerUI"><div id="cerFade"></div><div id="cerCap"></div><button id="cerSkip" type="button">Bỏ qua</button></div>
   <div id="wishUI">
     <div class="card" id="wishWrite">
@@ -883,8 +909,47 @@ function buildToilet() {
   addBox(x - d / 2 - 0.12, x + d / 2 + 0.12, z - w / 2 - 0.12, z + w / 2 + 0.12);
 }
 
+/* ---- Khu chụp ảnh kỷ niệm: phông hoa + tim ở góc phải trước sân khấu (xa khách đứng, không vướng cột rạp). Thân phông 1 mesh gộp + 1 tấm canvas. ---- */
+const PH = { x: 14.3, z: -9.0, stand: { x: 12.0, z: -9.0 }, cam: { x: 9.4, y: 1.5 } };
+function buildPhotoBooth() {
+  const flowers = [0xff5c8a, 0xfff4e0, 0xffd166, 0xff9ab0], parts = [
+    [dBox(0.1, 2.5, 3.0), 0x7a0f24, 0, 1.25, 0], [dBox(0.14, 0.12, 3.2), 0xffd166, 0, 2.52, 0], [dBox(0.14, 0.12, 3.2), 0xffd166, 0, 0.0, 0],
+    [dBox(0.14, 2.6, 0.12), 0xffd166, 0, 1.3, -1.6], [dBox(0.14, 2.6, 0.12), 0xffd166, 0, 1.3, 1.6],
+  ];
+  for (let i = 0; i < 14; i++) parts.push([dIco(0.17 + (i % 3) * 0.04), flowers[i % 4], -0.2, 0.15 + (i % 2) * 0.1, -1.5 + i * 0.23]);          // luống hoa dưới chân phông
+  for (let i = 0; i < 6; i++) parts.push([dIco(0.2), flowers[(i + 1) % 4], -0.2, 2.4 - (i % 2) * 0.12, -1.3 + i * 0.52]);                       // hoa trên đỉnh
+  put(world, mergeC(parts), VC, PH.x, 0, PH.z);
+  const tex = canvasTex(512, 384, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#ff9ab0'); gr.addColorStop(1, '#ff5c8a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,.35)'; for (const [x, y, r] of [[70, 80, 30], [450, 90, 24], [110, 320, 22], [420, 310, 34], [260, 50, 16]]) { heartPath(g, x, y, r * 2); g.fill(); }
+    g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 56px ${FONT}`; g.fillText('Ngọc Khánh', w / 2, h * 0.36);
+    g.font = `900 64px ${FONT}`; g.fillStyle = '#ffe28a'; g.fillText('♥', w / 2, h * 0.52); g.fillStyle = '#fff'; g.font = `900 56px ${FONT}`; g.fillText('Quốc Tuân', w / 2, h * 0.68);
+    g.font = `600 26px ${FONT}`; g.fillText('Ngày vui trăm năm', w / 2, h * 0.86);
+  });
+  const sheet = put(world, new THREE.PlaneGeometry(2.8, 2.1), new THREE.MeshBasicMaterial({ map: tex }), PH.x - 0.07, 1.3, PH.z, false, false); sheet.rotation.y = -Math.PI / 2;
+  addBox(PH.x - 0.4, PH.x + 0.4, PH.z - 1.7, PH.z + 1.7);
+}
+
+/* ---- Quầy bốc thăm may mắn: sân bên trái, đối xứng với nhà vệ sinh. Bàn + hộp đỏ gộp 1 mesh, biển 1 tấm canvas. Biển quay ra phía rạp (+x). ---- */
+const LK = { x: -12.6, z: 15.2, stand: { x: -11.0, z: 15.2 } };
+function buildLuckyStall() {
+  const parts = [
+    [dCyl(0.42, 0.42, 0.05, 12), 0x4a0d1a, 0, 0.025, 0], [dCyl(0.08, 0.1, 0.85, 8), 0x4a0d1a, 0, 0.45, 0], [dCyl(0.72, 0.72, 0.06, 18), 0x8a1538, 0, 0.88, 0],
+    [dBox(0.52, 0.34, 0.42), 0xd7263d, 0, 1.08, 0], [dBox(0.56, 0.05, 0.46), 0xffd166, 0, 1.27, 0], [dBox(0.3, 0.02, 0.05), 0x2a0a10, 0, 1.3, 0],
+    [dBox(0.04, 1.1, 0.04), 0x4a0d1a, 0, 1.45, -0.62], [dBox(0.04, 1.1, 0.04), 0x4a0d1a, 0, 1.45, 0.62],
+  ];
+  for (let i = 0; i < 5; i++) parts.push([dBox(0.13, 0.19, 0.02), i % 2 ? 0xffd166 : 0xe63946, -0.3 + i * 0.15, 0.99, 0.32 + (i % 2) * 0.05, 0, 0, (i - 2) * 0.15]);   // vài bao lì xì xếp trên bàn
+  put(world, mergeC(parts), VC, LK.x, 0, LK.z);
+  const tex = canvasTex(256, 96, (g, w, h) => {
+    g.fillStyle = '#b3122f'; g.fillRect(0, 0, w, h); g.strokeStyle = '#ffd166'; g.lineWidth = 5; g.strokeRect(5, 5, w - 10, h - 10);
+    g.fillStyle = '#ffe28a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 30px ${FONT}`; g.fillText('BỐC THĂM', w / 2, 34); g.fillText('MAY MẮN', w / 2, 68);
+  });
+  const sign = put(world, new THREE.PlaneGeometry(1.2, 0.45), new THREE.MeshBasicMaterial({ map: tex }), LK.x + 0.02, 1.8, LK.z, false, false); sign.rotation.y = Math.PI / 2;
+  addCircle(LK.x, LK.z, 0.8);
+}
+
 function buildWorld() {
-  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildOutside(); buildToilet(); buildActivitySpots();
+  buildGround(); buildTent(); buildGate(); buildStage(); buildTables(); buildFeatures(); buildDecor(); buildOutside(); buildToilet(); buildPhotoBooth(); buildLuckyStall(); buildActivitySpots();
   world.traverse((o) => { o.matrixAutoUpdate = false; o.updateMatrix(); });       // vật tĩnh: khỏi tính lại ma trận mỗi khung
 }
 
@@ -1209,9 +1274,26 @@ function updateBulbs(t) {
 /* =====================================================================
    10. VÒNG LẶP & KÍCH THƯỚC
    ===================================================================== */
+/* Chế độ tiết kiệm cho máy yếu: tắt bóng đổ (mỗi vật đổ bóng phải vẽ thêm một lượt) và hạ độ nét xuống 1×.
+   Tự bật khi tốc độ khung hình dưới `fps` suốt `need` đoạn đo liền nhau (mỗi đoạn `win` ms); nút ⚡ để tự bật/tắt (bấm tay thì thôi tự động). Không lưu vào máy. */
+const quality = {
+  lite: false, auto: true, fps: 38, win: 3000, need: 2, acc: 0, n: 0, bad: 0,
+  pr() { return this.lite ? 1 : Math.min(devicePixelRatio || 1, 2); },
+  set(on, byAuto) {
+    if (this.lite === on) return; this.lite = on; if (!byAuto) this.auto = false;
+    sun.castShadow = !on; renderer.setPixelRatio(this.pr()); resize();
+    const b = document.getElementById('lite'); if (b) b.setAttribute('aria-pressed', String(on));
+    if (G.started) showHint(on ? (byAuto ? 'Máy hơi chậm, mình đã bật chế độ tiết kiệm cho mượt hơn ⚡' : 'Đã bật chế độ tiết kiệm ⚡') : 'Đã tắt chế độ tiết kiệm', 4000);
+  },
+  sample(ms) {                                       // gọi mỗi khung hình; bỏ qua khung rất dài (tab ẩn)
+    if (!this.auto || this.lite || ms > 500) return;
+    this.acc += ms; this.n++;
+    if (this.acc >= this.win) { this.bad = (this.n * 1000 / this.acc) < this.fps ? this.bad + 1 : 0; this.acc = this.n = 0; if (this.bad >= this.need) this.set(true, true); }
+  },
+};
 function resize() {
   const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setSize(w, h, false); renderer.setPixelRatio(quality.pr());
   camera.aspect = w / h; camera.fov = camera.aspect < 1 ? 68 : 52; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
@@ -1220,7 +1302,8 @@ const fpsEl = document.getElementById('fps'); const showFps = location.hash === 
 let last = performance.now(), acc = 0, frames = 0;
 function loop(now) {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const rawMs = now - last, dt = Math.min(0.05, rawMs / 1000); last = now;
+  if (G.started) quality.sample(rawMs);
   if (G.started) {
     if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
     toastAct.tick(); ceremony.tick(dt); npcLife.update(dt); ambience.update(); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
@@ -1228,6 +1311,7 @@ function loop(now) {
   sparks.update(dt); hearts.update(dt);
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
   renderer.render(scene, camera);
+  if (photoAct.want) photoAct.grab();                  // chụp khung hình ngay sau khi vẽ (bộ đệm vẽ chưa bị xoá)
   if (showFps) { acc += dt; frames++; if (acc >= 0.5) { fpsEl.textContent = Math.round(frames / acc) + ' fps · ' + renderer.info.render.calls + ' calls'; acc = 0; frames = 0; } }
 }
 
@@ -1279,6 +1363,7 @@ function exitAct() {
   const a = G.act; a.exit(); G.act = null; cam.dist = CFG.camDist; cam.pitch = CFG.camPitchDefault; cam.lookY = CFG.camHeight; cam.yaw = 0;
   player.group.position.y = 0;
   if (isTouch) joy.style.display = 'block';
+  if (a !== finaleAct) finale.check();                // chơi đủ mọi hoạt động thì kết tiệc
 }
 $('actBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (nearSpot && !G.act) enterAct(nearSpot.act, nearSpot); });
 addEventListener('keydown', (e) => {
@@ -1353,7 +1438,9 @@ function buildActivitySpots() {
   addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });
   addSpot({ x: -4.6, z: -13.6, r: 1.5, label: 'Xem trao nhẫn', act: ceremonyAct, kind: 'ring' });   // góc trái trước sân khấu
   addSpot({ x: 4.6, z: -13.6, r: 1.5, label: 'Xem cắt bánh', act: ceremonyAct, kind: 'cake' });
-  addSpot({ x: WC.stand.x - 0.1, z: WC.stand.z, r: 1.7, label: 'Đi vệ sinh', act: toiletAct });                     // trước cửa nhà vệ sinh     // góc phải trước sân khấu, đối xứng với chỗ xem trao nhẫn          // giữa thảm đỏ, cách điểm karaoke ~5m
+  addSpot({ x: WC.stand.x - 0.1, z: WC.stand.z, r: 1.7, label: 'Đi vệ sinh', act: toiletAct, optional: true });
+  addSpot({ x: PH.stand.x, z: PH.stand.z, r: 1.6, label: 'Chụp ảnh cưới', act: photoAct });
+  addSpot({ x: LK.stand.x, z: LK.stand.z, r: 1.6, label: 'Bốc thăm may mắn', act: luckyAct });          // quầy bên trái sân          // trước phông hoa                     // trước cửa nhà vệ sinh     // góc phải trước sân khấu, đối xứng với chỗ xem trao nhẫn          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
 /* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
@@ -1509,7 +1596,7 @@ const trayAct = {
     if (t >= 4.4) this.giftDone();
   },
   giftDone() {
-    this.state = 'done'; const score = this.base + this.lixi; party.add(score);
+    buzz([30, 50, 30, 50, 80]); this.state = 'done'; const score = this.base + this.lixi; party.add(score);
     const wish = pick(['Lộc đầu may mắn, cả năm bình an nhé con!', 'Cảm ơn con đã bê mâm quả, cô chú vui lắm!', 'Lì xì lấy hên, chúc con sớm gặp duyên lành!', 'Con khéo tay quá, nhà gái mát lòng mát dạ!']);
     showResult({
       title: 'Mâm quả đã tới nơi!', score,
@@ -1530,6 +1617,7 @@ const trayAct = {
    Riêng `pour`: file chỉ to ở ~4 giây đầu (RMS ≈ -31 dB), phần sau xuống -60 dB, mà một lượt rót chỉ phát đoạn đầu, nên chuẩn hoá theo đoạn đầu. */
 const SFX_LEVEL = {
   norm: { pour: 2.8, applause: 1, cheers: 0.38, bouquetCatch: 0.31, bouquetMiss: 1.5, bouquetWait: 0.28, crowd: 0.26 },
+  maxSec: { crowd: 60, pour: 6 },                                      // file lặp dài chỉ giữ đoạn đầu trong RAM (crowd gốc 430 s = 79 MB, pour gốc 32 s = 12 MB)
   song: { song1: 0.98, song2: 0.63, song3: 0.39 },
   synth: { flush: 0.45, doorOpen: 0.2, doorClose: 0.12 },                                    // tiếng tổng hợp của nhà vệ sinh (biên độ đỉnh trước master)
   duckDb: { karaoke: -9, calm: -10, ceremony: -6, other: -4 },       // đám đông hạ bao nhiêu dB khi có hoạt động
@@ -1642,13 +1730,23 @@ const audio = {
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
   sfxBuf: {}, sfxLive: {},
   sfxTrimEnd: { cheers: 1.5 },                      // giây cắt bỏ ở cuối mỗi file khi phát (không sửa file gốc)
+  trimSfx(key, b) {                                 // giữ RAM thấp: cắt còn đoạn đầu, trộn chéo đuôi vào đầu để vòng lặp nối liền, không bị tạch
+    const sec = SFX_LEVEL.maxSec[key]; if (!sec || b.duration <= sec + 2) return b;
+    const sr = b.sampleRate, N = Math.floor(sec * sr), X = Math.min(Math.floor(sr * 1.5), b.length - N), out = this.ctx.createBuffer(b.numberOfChannels, N, sr);
+    for (let c = 0; c < b.numberOfChannels; c++) {
+      const src = b.getChannelData(c), d = out.getChannelData(c); d.set(src.subarray(0, N));
+      for (let i = 0; i < X; i++) { const w = i / X; d[i] = src[i] * w + src[N + i] * (1 - w); }
+    }
+    return out;
+  },
   loadSfx(key) {
     const src = (window.SFX_DATA || {})[key];
     if (!this.ctx || !src) return Promise.resolve(null);
     if (!this.sfxBuf[key]) {
       const bin = atob(src.slice(src.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).then((b) => {
+      this.sfxBuf[key] = this.ctx.decodeAudioData(bytes.buffer).then((b0) => {
+        const b = this.trimSfx(key, b0);
         const d = b.getChannelData(0); let f = 0; while (f < d.length && Math.abs(d[f]) < 0.01) f++;
         b.lead = Math.max(0, f / b.sampleRate - 0.02);          // đoạn im lặng đầu file: bỏ qua để tiếng vào ngay
         b.len = Math.max(0.3, b.duration - b.lead - (this.sfxTrimEnd[key] || 0));   // độ dài thực sự được phát
@@ -1680,12 +1778,14 @@ const audio = {
     } catch { /* đã dừng */ }
   },
 };
+$('lite').addEventListener('click', (e) => { quality.set(!quality.lite, false); e.currentTarget.blur(); });
 $('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.setAttribute('aria-pressed', String(audio.muted)); e.currentTarget.blur(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) audio.resume(); });   // quay lại tab: trình duyệt có thể đã treo âm thanh
 
 /* ---- Không khí tiệc: tiếng ồn đám đông, cụng ly và tiếng cười thỉnh thoảng (không có nhạc nền: đám đông đã đủ ồn) ----
    Nền đám đông là file songs/Tiếng ồn ào trong quán nhậu.mp3 (khoá 'crowd'). Không có file thì dùng tiếng người nói xa xa tổng hợp. Mức to nhỏ tự hạ theo hoạt động. */
-const AMB = { crowd: 1.6, clink: [7, 14], laugh: [28, 55], voice: [0.45, 1.5] };
+const AMB = { stageZ: -17, near: 1.2, span: 36, far: 0.3, crowd: 1.6,   // air = clamp(near - khoảng cách tới sân khấu / span, far, 1)
+   clink: [7, 14], laugh: [28, 55], voice: [0.45, 1.5] };
 const ambience = {
   on: false, c: -1, nextClink: 0, nextLaugh: 0, nextVoice: 0, crowdG: null,
   start() {
@@ -1693,9 +1793,9 @@ const ambience = {
     this.on = true; this.crowdG = a.ctx.createGain(); this.crowdG.gain.value = 0; this.crowdG.connect(a.master);
     const now = performance.now() / 1000; this.nextClink = now + 6; this.nextLaugh = now + 20; this.nextVoice = now + 1;
   },
-  setLevel(c, fc) {                                                                // c: hệ số 0..1 cho bản tổng hợp; fc: hệ số cho file thật (tính từ dB hạ theo hoạt động)
-    const t = audio.ctx.currentTime; this.crowdG.gain.setTargetAtTime(AMB.crowd * c, t, 0.5);
-    const k = audio.sfxLive.crowd; if (k && k.g) k.g.gain.setTargetAtTime(SFX_LEVEL.norm.crowd * fc, t, 0.5);   // file thật có mức riêng (khác bản tổng hợp)
+  setLevel(c, fc, air = 1) {                                                                // c: hệ số 0..1 cho bản tổng hợp; fc: hệ số cho file thật (tính từ dB hạ theo hoạt động)
+    const t = audio.ctx.currentTime; this.crowdG.gain.setTargetAtTime(AMB.crowd * c * air, t, 0.5);
+    const k = audio.sfxLive.crowd; if (k && k.g) k.g.gain.setTargetAtTime(SFX_LEVEL.norm.crowd * fc * air, t, 0.5);   // file thật có mức riêng (khác bản tổng hợp)
   },
   voice() {                                                                        // một câu người nói xa xa, nghe không ra lời
     const c = audio.ctx, n = 2 + Math.floor(Math.random() * 3), f0 = 110 + Math.random() * 130, t0 = c.currentTime + 0.02;
@@ -1714,12 +1814,13 @@ const ambience = {
     if (document.hidden) c = 0;
     const dk = a === karaokeAct ? 'karaoke' : (a === bouquetAct || a === trayAct || a === pourAct) ? 'calm' : a === ceremonyAct ? 'ceremony' : 'other';
     const fc = document.hidden ? 0 : a ? 10 ** (SFX_LEVEL.duckDb[dk] / 20) : 1;
-    if (c !== this.c || fc !== this.fc) { this.c = c; this.fc = fc; this.setLevel(c, fc); }
+    const air = Math.round(clamp(AMB.near - Math.hypot(player.x, player.z - AMB.stageZ) / AMB.span, AMB.far, 1) * 50) / 50;   // gần sân khấu to nhất, ra cổng/ra đường nhỏ dần
+    if (c !== this.c || fc !== this.fc || air !== this.air) { this.c = c; this.fc = fc; this.air = air; this.setLevel(c, fc, air); }
     const now = performance.now() / 1000;
-    if (file && !audio.sfxLive.crowd) audio.playSfx('crowd', Math.max(this.fc || 0, 0), true);
+    if (file && !audio.sfxLive.crowd) audio.playSfx('crowd', Math.max(this.fc || 0, 0) * (this.air || 1), true);
     if (c < 0.3) return;
     if (!file && now > this.nextVoice) { this.nextVoice = now + AMB.voice[0] + Math.random() * (AMB.voice[1] - AMB.voice[0]); this.voice(); }
-    if (now > this.nextClink) { this.nextClink = now + AMB.clink[0] + Math.random() * (AMB.clink[1] - AMB.clink[0]); audio.clink(0.28 + Math.random() * 0.25); }
+    if (now > this.nextClink) { this.nextClink = now + AMB.clink[0] + Math.random() * (AMB.clink[1] - AMB.clink[0]); audio.clink((0.28 + Math.random() * 0.25) * (this.air || 1)); }
     if (!file && now > this.nextLaugh) { this.nextLaugh = now + AMB.laugh[0] + Math.random() * (AMB.laugh[1] - AMB.laugh[0]); audio.laugh(); }
   },
 };
@@ -1891,7 +1992,7 @@ const karaokeAct = {
   },
   finishHold(n, k) { this.hold[n.lane] = null; n.st = 1; this.judge(k, n.lane, true); },
   judge(k, lane, quiet) {                           // k: 0 Cháy quá, 1 Được, 2 Lạc nhịp
-    this.counts[k]++; this.pts += [3, 2, 0][k];
+    this.counts[k]++; this.pts += [3, 2, 0][k]; buzz(k === 2 ? 30 : k === 0 ? 14 : 8);
     if (k === 2) { this.combo = 0; } else { this.combo++; this.bestCombo = Math.max(this.bestCombo, this.combo); }
     this.q += ([1, 0.6, 0][k] - this.q) * 0.3; crowd.target = 0.1 + 0.9 * this.q;
     this.label = { text: ['Cháy quá!', 'Được', 'Lạc nhịp'][k], color: ['#ffd166', '#7bed9f', '#ff7675'][k], age: 0 };
@@ -2108,10 +2209,10 @@ const bouquetAct = {
       for (const i of this.catchers) { const d = Math.hypot(npcs[i].x - BOUQ_LAND.x, npcs[i].z - BOUQ_LAND.z); if (d < bd) { bd = d; best = i; } }
       this.winner = best; this.comfort = COMFORT[Math.floor(Math.random() * COMFORT.length)];
       audio.playSfx('bouquetMiss').then((ok) => { if (!ok) audio.tone(196, 0.35, 'triangle', 0.14); });   // chưa nạp được mp3 thì dùng tiếng tổng hợp
-      $('catchMsg').textContent = 'Ối, hụt mất rồi!';
+      $('catchMsg').textContent = 'Ối, hụt mất rồi!'; buzz(120);
     } else {
       audio.playSfx('bouquetCatch').then((ok) => { if (!ok) { audio.tone(880, 0.25, 'triangle', 0.16); audio.tone(1318, 0.4, 'triangle', 0.14, 0.12); } });
-      $('catchMsg').textContent = res === 'perfect' ? 'Chuẩn quá!' : 'Bắt được rồi!';
+      $('catchMsg').textContent = res === 'perfect' ? 'Chuẩn quá!' : 'Bắt được rồi!'; buzz([30, 40, 70]);
     }
   },
   finish() {
@@ -2241,7 +2342,7 @@ const pourAct = {
   judge(kind) {
     audio.stopPour(this.snd); this.snd = null; crowd.silent = false; this.results.push(kind); this.state = 'settle'; this.t = 0; this.stream.visible = false;
     $('pourMsg').textContent = pick(POUR_TXT[kind]);
-    if (kind === 'spill') { audio.laugh(); crowd.target = 1; } else if (kind === 'perfect') { audio.clink(); crowd.target = 0.7; } else if (kind === 'good') { audio.clink(0.6); crowd.target = 0.4; } else crowd.target = 0.2;
+    if (kind === 'spill') { audio.laugh(); crowd.target = 1; buzz([70, 40, 70]); } else if (kind === 'perfect') { audio.clink(); crowd.target = 0.7; buzz(30); } else if (kind === 'good') { audio.clink(0.6); crowd.target = 0.4; } else crowd.target = 0.2;
   },
   finish() {
     this.state = 'done'; const r = this.results, n = (k) => r.filter((x) => x === k).length;
@@ -2512,7 +2613,7 @@ const toiletAct = {
     else if (T < W.closeEnd) { x = I.x; th = TOILET.open * (1 - ease(k(W.inEnd, W.closeEnd))); if (T >= W.closeEnd - 0.12) this.once('c1', () => audio.door(false)); }   // tiếng đóng đúng lúc cánh cửa chạm khung
     else if (T < W.reopen) {
       x = I.x; if (!this.fired.hide) { this.fired.hide = true; player.group.visible = false; WC.setSign(true); }
-      if (T >= W.flush) this.once('fl', () => audio.flush());
+      if (T >= W.flush) this.once('fl', () => { audio.flush(); buzz([60, 30, 60, 30, 120]); });
     } else if (T < W.reopenEnd) {
       x = I.x; rot = -Math.PI / 2; th = TOILET.open * ease(k(W.reopen, W.reopenEnd)); this.once('o2', () => { audio.door(true); WC.setSign(false); });
       if (T > W.reopen + 0.2) player.group.visible = true;
@@ -2527,6 +2628,166 @@ const toiletAct = {
     const pts = this.visits++ === 0 ? TOILET.first : TOILET.again; party.add(pts);
     this.coolUntil = performance.now() + TOILET.cooldownMs; exitAct();
     showHint(pick(TOILET_LINES) + ' (+' + pts + ' Vui)', 5000);
+  },
+};
+
+/* =====================================================================
+   18b2. CHỤP ẢNH KỶ NIỆM
+   Đứng trước phông hoa, đếm 3-2-1, đèn chớp, hiện ảnh polaroid. Ảnh chỉ nằm trong trang, không lưu và không gửi đi đâu.
+   Lần đầu được ít điểm Vui, các lần sau gần như không có.
+   ===================================================================== */
+const PHOTO = { first: 20, again: 3, walk: 0.8, count: 0.8, shot: 3.2 };
+const photoAct = {
+  t: 0, state: 'walk', want: false, p0: { x: 0, z: 0, rot: 0 }, dRot: 0, taken: 0, visits: 0, last: 0, shotAt: 0,
+  enter() {
+    this.p0 = { x: player.x, z: player.z, rot: player.rot }; const target = -Math.PI / 2;               // quay mặt ra phía máy quay (-x)
+    this.dRot = Math.atan2(Math.sin(target - player.rot), Math.cos(target - player.rot));
+    cam.free = { pos: new THREE.Vector3(PH.cam.x, PH.cam.y, PH.z), look: new THREE.Vector3(PH.stand.x, 1.25, PH.z) };
+    $('photoUI').style.display = 'block'; $('photoCard').style.display = 'none'; $('photoCount').textContent = '';
+    this.t = 0; this.state = 'walk'; this.want = false; this.last = 0;
+  },
+  exit() {
+    $('photoUI').style.display = 'none'; $('photoCard').style.display = 'none'; $('photoFlash').style.opacity = 0; cam.free = null; this.want = false;
+    const r = player.rig; poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0;
+  },
+  retake() { this.t = PHOTO.walk; this.state = 'count'; this.last = 0; $('photoCard').style.display = 'none'; },
+  grab() {                                          // gọi từ vòng lặp ngay sau renderer.render
+    this.want = false; let url = '';
+    try { url = canvas.toDataURL('image/jpeg', 0.88); } catch { /* trình duyệt chặn đọc ảnh */ }
+    $('photoImg').src = url; $('photoCap').textContent = 'Ngọc Khánh ♥ Quốc Tuân · ' + G.name;
+    $('photoCard').style.display = url ? 'block' : 'none'; if (!url) this.finish();
+  },
+  update(dt) {
+    const T = (this.t += dt), r = player.rig, k = (a, b) => clamp((T - a) / (b - a), 0, 1), S = PH.stand;
+    let x = S.x, z = S.z, rot = -Math.PI / 2, walk = false;
+    if (this.state === 'walk') { const e = ease(k(0, PHOTO.walk)); x = lerp(this.p0.x, S.x, e); z = lerp(this.p0.z, S.z, e); rot = this.p0.rot + this.dRot * e; walk = e < 1; if (T >= PHOTO.walk) this.state = 'count'; }
+    player.x = x; player.z = z; player.rot = rot; player.group.position.set(x, 0, z); player.group.rotation.y = rot;
+    poseWalker(r, T * 9, walk ? 1 : 0, false);
+    if (this.state === 'count' || this.state === 'shot' || this.state === 'review') {                  // tạo dáng: hai tay giơ cao vẫy nhẹ
+      const sw = Math.sin(T * 5) * 0.12; r.armL.rotation.z = -(2.45 + sw); r.armR.rotation.z = 2.45 - sw;
+    }
+    if (this.state === 'count') {
+      const n = 3 - Math.floor((T - PHOTO.walk) / PHOTO.count);
+      if (n !== this.last && n > 0) { this.last = n; $('photoCount').textContent = String(n); audio.tone(660 + (3 - n) * 110, 0.12, 'sine', 0.06); buzz(12); }
+      if (T >= PHOTO.shot) {
+        this.state = 'shot'; $('photoCount').textContent = ''; this.want = true; this.taken++;
+        const f = $('photoFlash'); f.style.transition = 'none'; f.style.opacity = 0.9; void f.offsetWidth; f.style.transition = 'opacity .6s'; f.style.opacity = 0;
+        audio.noise(0.08, 0.3, 3000); audio.tone(1800, 0.04, 'square', 0.05); buzz(40);
+        this.shotAt = T;
+      }
+    } else if (this.state === 'shot' && T > this.shotAt + 0.4) this.state = 'review';
+  },
+  finish() {
+    const pts = this.taken === 0 ? 0 : (this.visits++ === 0 ? PHOTO.first : PHOTO.again); if (pts) party.add(pts);
+    this.taken = 0; exitAct(); snapCamera();
+    if (pts) showHint('Ảnh đẹp quá! (+' + pts + ' Vui)', 4500);
+  },
+};
+$('photoAgain').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.retake(); });
+$('photoDone').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.finish(); });
+
+/* =====================================================================
+   18b3. BỐC THĂM MAY MẮN
+   Chọn một trong ba bao lì xì để nhận lời chúc vui. Lần đầu được điểm Vui theo phần thưởng, các lần sau chỉ được ít; mỗi lần có thời gian chờ ngắn.
+   ===================================================================== */
+const LUCKY = { again: 2, cooldownMs: 12000, walk: 0.7, open: 0.9 };
+const LUCKY_PRIZES = [
+  { text: 'Lộc đầu năm: cả năm làm gì cũng thuận buồm xuôi gió!', pts: 30 },
+  { text: 'Một ly rượu mừng: chúc bạn tửu lượng như hải lượng!', pts: 20 },
+  { text: 'Nụ cười tỏa nắng: hôm nay bạn là người rạng rỡ nhất tiệc!', pts: 15 },
+  { text: 'Chúc bạn sớm có người thương, đám cưới tiếp theo là của bạn!', pts: 10 },
+  { text: 'Thẻ miễn rửa chén trọn đời, nhưng chỉ có tác dụng ở đám cưới này!', pts: 5 },
+];
+const luckyAct = {
+  t: 0, state: 'walk', visits: 0, coolUntil: 0, prize: null, ot: 0, p0: { x: 0, z: 0, rot: 0 }, dRot: 0,
+  canEnter() {
+    if (performance.now() >= this.coolUntil) return true;
+    showHint('Vừa bốc xong mà, chờ một chút rồi bốc tiếp nhé', 3000); return false;
+  },
+  enter() {
+    this.p0 = { x: player.x, z: player.z, rot: player.rot }; const target = -Math.PI / 2;
+    this.dRot = Math.atan2(Math.sin(target - player.rot), Math.cos(target - player.rot));
+    cam.yaw = Math.PI / 2 - 0.4; cam.pitch = 0.3; cam.dist = 4.4; cam.lookY = 1.3;
+    this.t = 0; this.state = 'walk'; $('luckyUI').style.display = 'none';
+  },
+  exit() { $('luckyUI').style.display = 'none'; const r = player.rig; poseWalker(r, 0, 0, false); r.armR.rotation.x = 0; },
+  choose(i) {
+    if (this.state !== 'pick') return;
+    this.state = 'open'; this.ot = 0; this.prize = pick(LUCKY_PRIZES); $('luckyUI').style.display = 'none'; buzz(30); audio.tone(880, 0.12, 'triangle', 0.07);
+  },
+  reveal() {
+    this.state = 'result'; const first = this.visits++ === 0, pts = first ? this.prize.pts : LUCKY.again; party.add(pts); audio.clink(); chime(); buzz([30, 40, 70]);
+    showResult({
+      title: 'Bốc trúng rồi!', score: pts, msg: this.prize.text + (first ? '' : ' (bốc thêm nên chỉ được ít điểm Vui thôi nhé)'),
+      again: () => { this.state = 'pick'; $('luckyUI').style.display = 'flex'; },
+      done: () => this.finish(),
+    });
+  },
+  quit() { if (G.act === this && this.state === 'pick') { exitAct(); showHint('Lúc nào rảnh bạn quay lại bốc thăm nhé ♥', 3500); } },
+  finish() { this.coolUntil = performance.now() + LUCKY.cooldownMs; exitAct(); showHint('Lộc đã vào tay, chúc bạn cả năm may mắn!', 4500); },
+  update(dt) {
+    const T = (this.t += dt), r = player.rig, S = LK.stand;
+    let x = S.x, z = S.z, rot = -Math.PI / 2, walk = false;
+    if (this.state === 'walk') {
+      const e = ease(clamp(T / LUCKY.walk, 0, 1)); x = lerp(this.p0.x, S.x, e); z = lerp(this.p0.z, S.z, e); rot = this.p0.rot + this.dRot * e; walk = e < 1;
+      if (T >= LUCKY.walk) { this.state = 'pick'; $('luckyUI').style.display = 'flex'; }
+    }
+    player.x = x; player.z = z; player.rot = rot; player.group.position.set(x, 0, z); player.group.rotation.y = rot;
+    poseWalker(r, T * 9, walk ? 1 : 0, false);
+    if (this.state === 'open') { this.ot += dt; r.armR.rotation.x = -1.3 * Math.sin(Math.PI * clamp(this.ot / LUCKY.open, 0, 1) * 0.5); if (this.ot >= LUCKY.open) this.reveal(); }
+  },
+};
+document.querySelectorAll('#luckyUI .env').forEach((b) => b.addEventListener('click', (e) => { e.currentTarget.blur(); luckyAct.choose(+b.dataset.i); }));
+$('luckyQuit').addEventListener('click', (e) => { e.currentTarget.blur(); luckyAct.quit(); });
+
+/* =====================================================================
+   18c. KẾT TIỆC
+   Khi người chơi đã ghé đủ mọi hoạt động và vừa thoát hoạt động cuối, máy quay lướt ra trước sân khấu: cô dâu chú rể vẫy tay, cúi chào,
+   pháo giấy và trái tim bay, màn LED ghi lời cảm ơn, rồi hiện bảng thưởng. Chỉ phát một lần mỗi lượt chơi.
+   ===================================================================== */
+const FINALE = { dur: 9.5, bonus: 50, bows: [5.2, 7.0], delayMs: 1200 };
+const finale = {
+  done: false,
+  check() {
+    if (this.done || !G.started || spots.some((s) => !s.optional && !played.has(s.label))) return;   // chỉ cần đủ hoạt động bắt buộc
+    this.done = true;
+    setTimeout(() => { if (G.act) { this.done = false; return; } enterAct(finaleAct, null); }, FINALE.delayMs);   // đang bận hoạt động khác thì thử lại lần thoát sau
+  },
+};
+const finaleAct = {
+  t: 0, ending: false, burstAt: 0, heartAt: 0,
+  enter() {
+    this.t = 0; this.ending = false; this.burstAt = this.heartAt = 0; player.group.visible = false;
+    cam.free = { pos: new THREE.Vector3(0, 2.5, -9.2), look: new THREE.Vector3(0, 2.4, -17.2) };
+    ledScreen.set('CẢM ƠN BẠN ĐÃ ĐẾN!'); crowd.target = 1; audio.playSfx('cheers'); chime(); buzz([40, 60, 40, 60, 120]);
+    showHint('Cảm ơn bạn đã ở lại chung vui cùng Ngọc Khánh và Quốc Tuân ♥', 6000);
+  },
+  exit() {
+    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.body.rotation.x = 0; });
+    player.group.visible = true; cam.free = null; crowd.target = 0; this.ending = false;
+    if (!ledHoldUntil) ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
+  },
+  update(dt) {
+    if (this.ending) return;
+    const T = (this.t += dt), [g, b] = coupleRigs, k = (a, c) => clamp((T - a) / (c - a), 0, 1);
+    if (T > 0.8) { g.armR.rotation.z = 2.6 + 0.25 * Math.sin(T * 7); b.armL.rotation.z = -(2.6 + 0.25 * Math.sin(T * 7 + 1)); }   // hai người vẫy tay
+    g.body.rotation.x = b.body.rotation.x = 0.5 * Math.sin(Math.PI * k(FINALE.bows[0], FINALE.bows[1]));                               // cúi chào cảm ơn
+    if (T > 0.8 && T < 7.2 && T - this.burstAt > 0.55) {
+      this.burstAt = T; sparks.emit(rand() * 7 - 3.5, 3.0 + rand() * 0.8, -16, 40, rand() < 0.5 ? CONFETTI : GOLD_SPARK, 2.2, 2.5);
+      audio.noise(0.14, 0.18, 600); audio.tone(520 + rand() * 400, 0.1, 'square', 0.04);
+    }
+    if (T > 0.8 && T < 8 && T - this.heartAt > 0.8) { this.heartAt = T; hearts.emit(rand() * 3 - 1.5, CFG.stage.h + 1.6, -16.5, 4, PINKS, 0.6, 1.2); }
+    if (T >= FINALE.dur) this.finish();
+  },
+  finish() {
+    this.ending = true; party.add(FINALE.bonus); chime(); buzz([30, 50, 30, 50, 80]);
+    $('resAgain').style.display = 'none';
+    showResult({
+      title: 'Tiệc vui trọn vẹn!', score: FINALE.bonus,
+      msg: 'Bạn đã ghé đủ ' + spots.filter((s) => !s.optional).length + ' hoạt động. Ngọc Khánh và Quốc Tuân gửi lời cảm ơn vì đã đến chung vui!',
+      again: () => {},
+      done: () => { $('resAgain').style.display = ''; exitAct(); snapCamera(); showHint('Bạn cứ dạo tiệc và chúc rượu các bàn nhé, tiệc còn dài!', 6000); },
+    });
   },
 };
 
@@ -2865,6 +3126,9 @@ OUTFITS.forEach((o, i) => {
   wrap.append(b);
 });
 
+/* Rung nhẹ khi có sự kiện. Chỉ Chrome/Android hỗ trợ navigator.vibrate; iPhone Safari không có nên sẽ im lặng. Tôn trọng chế độ "giảm chuyển động" của hệ thống. */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+function buzz(pattern) { if (G.started && !reduceMotion.matches && typeof navigator.vibrate === 'function') { try { navigator.vibrate(pattern); } catch { /* trình duyệt chặn */ } } }
 function showHint(text, ms = 7000) {
   const h = $('hint'); h.textContent = text; h.style.opacity = 1; clearTimeout(showHint.t); showHint.t = setTimeout(() => { h.style.opacity = 0; }, ms);
 }
@@ -2878,6 +3142,8 @@ const SPOT_INFO = {
   'Xem trao nhẫn': 'Đứng xem cặp đôi trao nhẫn',
   'Xem cắt bánh': 'Đứng xem cắt bánh cưới',
   'Đi vệ sinh': 'Ghé nhà vệ sinh cho nhẹ người',
+  'Chụp ảnh cưới': 'Chụp ảnh kỷ niệm trước phông hoa',
+  'Bốc thăm may mắn': 'Bốc một bao lì xì lấy hên',
 };
 const ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
 const _fwd = new THREE.Vector3();
@@ -2886,9 +3152,10 @@ function setGoal(text) { if (goalEl.textContent !== text) goalEl.textContent = t
 function updateGoal() {
   if (!G.started || G.act) { setGoal(''); return; }
   let best = null, bd = 1e9;
-  for (const s of spots) { if (played.has(s.label)) continue; const d = Math.hypot(player.x - s.x, player.z - s.z); if (d < bd) { best = s; bd = d; } }
-  if (!best) { setGoal('Bạn đã chơi đủ ' + spots.length + ' hoạt động. Đi chúc rượu các bàn nhé!'); return; }
-  const tail = ' · đã thử ' + played.size + '/' + spots.length;
+  const need = spots.filter((s) => !s.optional);                      // hoạt động chỉ để vui (nhà vệ sinh) không nằm trong mục tiêu
+  for (const s of need) { if (played.has(s.label)) continue; const d = Math.hypot(player.x - s.x, player.z - s.z); if (d < bd) { best = s; bd = d; } }
+  if (!best) { setGoal('Bạn đã chơi đủ ' + need.length + ' hoạt động. Đi chúc rượu các bàn nhé!'); return; }
+  const tail = ' · đã thử ' + need.filter((s) => played.has(s.label)).length + '/' + need.length;
   if (bd < best.r) { setGoal('Bấm nút bên phải: ' + best.label + tail); return; }
   camera.getWorldDirection(_fwd);
   const dx = best.x - player.x, dz = best.z - player.z;
@@ -2920,7 +3187,35 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc'; if (window.__loadDone) window.__loadDone();
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { toiletAct, WC, TOILET, ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
+/* ---- Chạm vào một vị khách để chào: bong bóng lời thoại hiện trên đầu người gần điểm chạm nhất (trong tầm 12 m). Chạm = nhấc tay trong 350 ms và lệch dưới 10 px,
+   để không lẫn với vuốt xoay máy quay. Chào đủ 5 khách khác nhau thì được thưởng một lần, chào lại không có điểm. ---- */
+const GREET = ['Chào {tên}! Chúc mừng đám cưới nhé!', 'Ôi {tên} đến rồi! Ngồi ăn gì chưa?', 'Hôm nay cô dâu chú rể đẹp đôi quá nhỉ!', 'Ăn đi {tên}, còn nhiều món lắm!', 'Có {tên} đến chung vui, tiệc vui hẳn lên!', 'Chào bạn! Đã chúc rượu cô dâu chú rể chưa?'];
+const GREET_GOAL = 5, greeted = new Set(), tapState = { x: 0, y: 0, t: 0, id: -1 };
+function greetAt(px, py) {
+  const w = innerWidth, h = innerHeight, tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2); let best = -1, bd = 1e9;
+  npcs.forEach((n, i) => {
+    if (n.reserve || n.vis === 0) return;
+    const dist = Math.hypot(n.x - player.x, n.z - player.z); if (dist > 12) return;
+    _v.set(n.x, 0.9 * n.scale, n.z).project(camera); if (_v.z > 1 || Math.abs(_v.x) > 1.2 || Math.abs(_v.y) > 1.2) return;
+    const d = Math.hypot((_v.x * 0.5 + 0.5) * w - px, (-_v.y * 0.5 + 0.5) * h - py), body = 1.6 * n.scale / (2 * Math.max(dist, 1) * tanHalf) * h;
+    if (d < Math.max(28, body * 0.4) && d < bd) { best = i; bd = d; }
+  });
+  if (best < 0) return;
+  const line = pick(GREET).replace('{tên}', G.name); buzz(10);
+  if (!npcLife.say(best, line, 3.6)) showHint(line, 3000);
+  if (!greeted.has(best)) {
+    greeted.add(best);
+    if (greeted.size === GREET_GOAL) { party.add(10); showHint('Bạn đã chào ' + GREET_GOAL + ' vị khách, đúng là người hòa đồng! (+10 Vui)', 5000); }
+  }
+}
+canvas.addEventListener('pointerdown', (e) => { tapState.x = e.clientX; tapState.y = e.clientY; tapState.t = performance.now(); tapState.id = e.pointerId; });
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== tapState.id || !G.started || G.act) return;
+  if (Math.hypot(e.clientX - tapState.x, e.clientY - tapState.y) > 10 || performance.now() - tapState.t > 350) return;
+  greetAt(e.clientX, e.clientY);
+});
+
+window.__ddc = { camera, greeted, greetAt, luckyAct, LK, photoAct, PH, played, spots, finale, finaleAct, quality, toiletAct, WC, TOILET, ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
