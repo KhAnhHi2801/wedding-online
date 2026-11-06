@@ -36,7 +36,7 @@ for fname, info in charts.items():
     songs.append({'id': 'song' + str(len(songs) + 1), 'title': info['title'], 'dur': round(mp3_duration(data), 2),
                   'src': 'data:audio/mpeg;base64,' + base64.b64encode(data).decode('ascii'), 'chart': info['chart']})
 # Hiệu ứng âm thanh hoạt động Bắt hoa: khoá → file (index.html gọi audio.playSfx(khoá))
-SFX = {'bouquetWait': 'Chờ để bắt hoa.mp3', 'bouquetCatch': 'Bắt được hoa.mp3', 'bouquetMiss': 'Bắt hụt.mp3', 'cheers': 'Hai ba dzo.mp3'}
+SFX = {'bouquetWait': 'Chờ để bắt hoa.mp3', 'bouquetCatch': 'Bắt được hoa.mp3', 'bouquetMiss': 'Bắt hụt.mp3', 'cheers': 'Hai ba dzo.mp3', 'applause': 'Tiếng vỗ tay.mp3'}
 sfx = {}
 for key, fname in SFX.items():
     path = os.path.join(ROOT, 'songs', fname)

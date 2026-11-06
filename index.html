@@ -56,6 +56,13 @@
     padding:18px 26px; font-size:20px; font-weight:800; border:0; border-radius:999px; color:#4a0d1a; cursor:pointer;
     background:linear-gradient(180deg,#ffe28a,#ffb703); box-shadow:0 6px 20px rgba(0,0,0,.45); animation:pulse 1.2s infinite; touch-action:manipulation; }
   @keyframes pulse { 50% { transform:scale(1.06); } }
+  /* ---------- Sự kiện theo giờ: trao nhẫn, cắt bánh ---------- */
+  #cerUI { position:absolute; inset:0; display:none; pointer-events:none; }
+  #cerFade { position:absolute; inset:0; background:#000; opacity:1; transition:opacity .5s; }
+  #cerCap { position:absolute; left:50%; bottom:calc(max(26px,env(safe-area-inset-bottom)) + 64px); transform:translateX(-50%); width:min(88vw,520px); text-align:center;
+    background:rgba(11,16,48,.8); border:1px solid rgba(255,209,102,.45); border-radius:16px; padding:12px 16px; font-size:16px; font-weight:700; color:#ffe9a8; opacity:0; transition:opacity .4s; }
+  #cerSkip { position:absolute; right:max(14px,env(safe-area-inset-right)); bottom:max(26px,env(safe-area-inset-bottom)); pointer-events:auto; padding:10px 18px; font-size:14px;
+    border:1px solid rgba(255,255,255,.45); border-radius:999px; background:rgba(11,16,48,.75); color:#fff; cursor:pointer; touch-action:manipulation; }
   #bal { position:absolute; left:50%; bottom:calc(max(24px,env(safe-area-inset-bottom)) + 36px); transform:translateX(-50%); width:min(88vw,360px);
     display:none; text-align:center; background:rgba(11,16,48,.72); border-radius:16px; padding:10px 14px 12px; }
   #bal.danger { box-shadow:0 0 0 3px rgba(255,70,90,.8); }
@@ -193,6 +200,7 @@
     <div id="toastMsg"></div>
     <button id="toastBtn" type="button">Chúc rượu</button>
   </div>
+  <div id="cerUI"><div id="cerFade"></div><div id="cerCap"></div><button id="cerSkip" type="button">Bỏ qua</button></div>
   <div id="wishUI">
     <div class="card" id="wishWrite">
       <h2>Gửi lời chúc</h2>
@@ -628,13 +636,13 @@ function buildFeatures() {
   }
   finishInst(cups); world.add(cups);
   put(world, new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), M(0xffd166), tx, topY + 0.4, tz);
-  // Bánh kem 3 tầng
-  const cx = 3.4, cz = -12.6;
-  clothTable(cx, cz, 0.8, topY, 0xc1121f);
-  const tiers = [[0.52, 0.3, 0xfff0f5], [0.37, 0.26, 0xffc2d6], [0.23, 0.22, 0xfff0f5]];
-  let y = topY;
-  for (const [r, h, col] of tiers) { put(world, new THREE.CylinderGeometry(r, r, h, 20), M(col), cx, y + h / 2, cz); put(world, new THREE.TorusGeometry(r, 0.025, 6, 20).rotateX(Math.PI / 2), M(0xff7eb6), cx, y + h, cz, false, false); y += h; }
-  put(world, heartGeo(0.12, 0.05), M(0xff3b6b), cx, y + 0.13, cz, false, false);
+  // Bánh cưới ba tầng đặt trên sân khấu, giữa cô dâu và chú rể (cảnh cắt bánh diễn ra ngay tại đây nên tay và dao luôn nằm phía trước bánh)
+  const cx = 0, cz = -17.3, cy = CFG.stage.h;
+  put(world, new THREE.CylinderGeometry(0.4, 0.45, 0.78, 16), M(0xc1121f), cx, cy + 0.39, cz);
+  const tiers = [[0.36, 0.18, 0xfff0f5], [0.26, 0.15, 0xffc2d6], [0.17, 0.12, 0xfff0f5]];
+  let y = cy + 0.78;
+  for (const [r, h, col] of tiers) { put(world, new THREE.CylinderGeometry(r, r, h, 20), M(col), cx, y + h / 2, cz); put(world, new THREE.TorusGeometry(r, 0.02, 6, 20).rotateX(Math.PI / 2), M(0xff7eb6), cx, y + h, cz, false, false); y += h; }
+  put(world, heartGeo(0.09, 0.04), M(0xff3b6b), cx, y + 0.11, cz, false, false);
 
   // Thùng phong bì: bàn nhỏ + hộp đỏ có khe + biển chữ
   const ex = 2.6, ez = 12.2;
@@ -888,7 +896,7 @@ joy.addEventListener('pointerdown', (e) => { if (joyId !== null) return; joyId =
 joy.addEventListener('pointermove', (e) => { if (e.pointerId === joyId) moveJoy(e); });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => joy.addEventListener(t, endJoy));
 
-const cam = { yaw: 0, pitch: CFG.camPitchDefault, dist: CFG.camDist, lookY: CFG.camHeight, pos: new THREE.Vector3(), look: new THREE.Vector3() };
+const cam = { free: null, yaw: 0, pitch: CFG.camPitchDefault, dist: CFG.camDist, lookY: CFG.camHeight, pos: new THREE.Vector3(), look: new THREE.Vector3() };
 let dragId = null, lastX = 0, lastY = 0;
 const stick = { u: 0, x0: 0 };                       // kéo ngang = "cần ảo" khi đang chơi hoạt động cần thăng bằng
 canvas.addEventListener('pointerdown', (e) => {
@@ -932,6 +940,7 @@ function updateCamera(dt, orbitT) {
     _desired.set(Math.sin(a) * 26, 9 + Math.sin(orbitT * 0.2), 8 + Math.cos(a) * 20); _target.set(0, 1.5, -4);
     camera.position.lerp(_desired, 1 - Math.exp(-2 * dt)); cam.look.lerp(_target, 1 - Math.exp(-4 * dt)); camera.lookAt(cam.look); return;
   }
+  if (cam.free) { const k = 1 - Math.exp(-5 * dt); camera.position.lerp(cam.free.pos, k); cam.look.lerp(cam.free.look, k); camera.lookAt(cam.look); return; }   // cảnh quay riêng của sự kiện
   const cp = Math.cos(cam.pitch);
   _target.set(player.x, cam.lookY, player.z);
   _desired.set(player.x + Math.sin(cam.yaw) * cp * cam.dist, CFG.camHeight + Math.sin(cam.pitch) * cam.dist, player.z + Math.cos(cam.yaw) * cp * cam.dist);
@@ -959,8 +968,9 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.started) {
     if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
-    toastAct.tick(); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
+    toastAct.tick(); ceremony.tick(dt); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
   }
+  sparks.update(dt); hearts.update(dt);
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
   renderer.render(scene, camera);
   if (showFps) { acc += dt; frames++; if (acc >= 0.5) { fpsEl.textContent = Math.round(frames / acc) + ' fps · ' + renderer.info.render.calls + ' calls'; acc = 0; frames = 0; } }
@@ -1002,8 +1012,8 @@ function updateSpots() {
   if (best === nearSpot) return;
   nearSpot = best; const b = $('actBtn'); b.style.display = best ? 'block' : 'none'; if (best) b.textContent = best.label;
 }
-function enterAct(a) {
-  G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; joy.style.display = 'none';
+function enterAct(a, spot) {
+  a.spot = spot; G.act = a; nearSpot = null; $('actBtn').style.display = 'none'; joy.style.display = 'none';
   input.jx = input.jy = 0; stick.u = 0; keys.clear(); a.enter();
 }
 function exitAct() {
@@ -1011,10 +1021,10 @@ function exitAct() {
   player.group.position.y = 0;
   if (isTouch) joy.style.display = 'block';
 }
-$('actBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (nearSpot && !G.act) enterAct(nearSpot.act); });
+$('actBtn').addEventListener('click', (e) => { e.currentTarget.blur(); if (nearSpot && !G.act) enterAct(nearSpot.act, nearSpot); });
 addEventListener('keydown', (e) => {
   if (!G.started || G.act || !nearSpot || isTyping(e)) return;
-  if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enterAct(nearSpot.act); }
+  if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enterAct(nearSpot.act, nearSpot); }
 });
 function showResult({ title, score, msg, again, pick, done }) {
   $('resTitle').textContent = title; $('resScore').textContent = '+' + score + ' Vui'; $('resMsg').textContent = msg;
@@ -1080,7 +1090,9 @@ function buildActivitySpots() {
   addSpot({ x: 0, z: -12.7, r: 2.6, label: 'Hát karaoke', act: karaokeAct });          // trước sân khấu, cuối thảm đỏ
   addSpot({ x: 2.6, z: 13.2, r: 2.0, label: 'Bỏ phong bì', act: wishAct });               // thùng phong bì cạnh cổng
   addSpot({ x: -3.4, z: -10.6, r: 1.6, label: 'Rót tháp ly', act: pourAct });             // trước tháp ly bên trái sân khấu
-  addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });          // giữa thảm đỏ, cách điểm karaoke ~5m
+  addSpot({ x: 0, z: -7.4, r: 2.4, label: 'Bắt hoa cưới', act: bouquetAct });
+  addSpot({ x: -4.6, z: -13.6, r: 1.5, label: 'Xem trao nhẫn', act: ceremonyAct, kind: 'ring' });   // góc trái trước sân khấu
+  addSpot({ x: 4.6, z: -13.6, r: 1.5, label: 'Xem cắt bánh', act: ceremonyAct, kind: 'cake' });     // góc phải trước sân khấu, đối xứng với chỗ xem trao nhẫn          // giữa thảm đỏ, cách điểm karaoke ~5m
 }
 
 /* ---- Cảm biến nghiêng (điện thoại). Chỉ dùng khi màn hình dọc; chưa kiểm trên máy thật. ---- */
@@ -1282,10 +1294,10 @@ const audio = {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + when, s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
     s.buffer = this.noiseBuf; f.type = 'highpass'; f.frequency.value = hp;
-    g.gain.setValueAtTime(Math.max(vol, 0.0002), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const at = Math.min(0.006, dur / 3);              // vào tiếng có đoạn nâng 6 ms: bật thẳng lên mức to thì mỗi lần nghe một tiếng "tạch"
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(Math.max(vol, 0.0002), t + at); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
   },
-  clap(vol) { this.noise(0.05, vol, 1500); },
   startPour() {                                     // tiếng nước rót: nhiễu lọc dải, cao dần theo mực nước (setPour)
     if (!this.ctx || !this.pourBuf) return null;
     const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
@@ -1331,7 +1343,7 @@ const audio = {
       const at = this.ctx.currentTime, end = at + buf.len; s.start(at, buf.lead || 0, buf.len);
       g.gain.setValueAtTime(vol, Math.max(at, end - 0.08)); g.gain.linearRampToValueAtTime(0, end);
     }
-    token.src = s; token.g = g; s.onended = () => { try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };
+    token.src = s; token.g = g; s.onended = () => { if (this.sfxLive[key] === token) delete this.sfxLive[key]; try { s.disconnect(); g.disconnect(); } catch { /* đã gỡ */ } };   // phát hết thì bỏ khỏi danh sách đang chạy
     return true;
   },
   stopSfx(key, fade = 0.25) {                       // mờ dần rồi dừng; fade = 0 là dừng ngay
@@ -1346,8 +1358,13 @@ const audio = {
 $('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
 
 /* Khán giả: level 0..1 = mức nhiệt tình; target do hoạt động đặt. NPC chắp tay vỗ + nhún theo nhịp. */
-const crowd = { level: 0, target: 0, active: false, nextClap: 0, silent: false };   // silent: vẫn vỗ tay hình, nhưng không phát tiếng (karaoke cần nhạc sạch)
+const crowd = { level: 0, target: 0, active: false, silent: false, prevTarget: 0 };   // silent: vẫn vỗ tay hình, nhưng không phát tiếng (karaoke cần nhạc sạch)
 function updateCrowd(dt, t) {
+  /* Tiếng vỗ tay là file thật, phát một lần mỗi đợt: khi mức hào hứng tăng lên mà chưa có tiếng nào đang chạy. Hết đợt (target về 0) thì mờ dần;
+     vào karaoke/rót tháp (silent) thì tắt hẳn để không lẫn vào nhạc. */
+  const rose = crowd.target > crowd.prevTarget + 0.05; crowd.prevTarget = crowd.target;
+  if (rose && !crowd.silent && !audio.sfxLive.applause) audio.playSfx('applause', 0.35 + 0.45 * crowd.target);
+  if ((crowd.silent || crowd.target === 0) && audio.sfxLive.applause) audio.stopSfx('applause', crowd.silent ? 0.3 : 1.2);
   crowd.level += (crowd.target - crowd.level) * (1 - Math.exp(-4 * dt));
   if (crowd.level < 0.02 && crowd.target === 0) {
     if (crowd.active) { crowd.active = false; for (let i = 0; i < npcs.length; i++) placeNpc(i, 0, 0, false); markNpcDirty(); }   // về tư thế nghỉ
@@ -1359,7 +1376,6 @@ function updateCrowd(dt, t) {
     placeNpc(i, c * 0.04, c, false);
   }
   markNpcDirty();
-  if (!crowd.silent && crowd.level > 0.15 && t > crowd.nextClap) { audio.clap(0.03 + 0.12 * crowd.level); crowd.nextClap = t + 0.07 + Math.random() * 0.12 / (0.3 + crowd.level); }
 }
 function markNpcDirty() { for (const k of ['torso', 'neck', 'head', 'hair', 'eyes', 'mouth', 'arms', 'pants']) NP[k].instanceMatrix.needsUpdate = true; }
 
@@ -2097,6 +2113,190 @@ $('wishDoneBtn').addEventListener('click', (e) => { e.currentTarget.blur(); wish
 
 
 /* =====================================================================
+   19. TRAO NHẪN VÀ CẮT BÁNH (chỉ đứng xem)
+   Người chơi chủ động ra vòng sáng để xem, nên không bao giờ bị cắt ngang lúc đang chơi hoạt động khác (đồng hồ chỉ nhắc nhẹ một lần).
+   Máy quay chuyển sang cảnh quay riêng (cam.free) qua một nhịp tối màn, cô dâu chú rể diễn theo dòng thời gian T (giây kể từ lúc sáng lại). Có nút Bỏ qua.
+   Lần đầu xem hết mỗi sự kiện được nhiều điểm Vui, các lần sau ít để không cày điểm bằng cách xem lại.
+   ===================================================================== */
+const CER = { nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
+const seg = (T, a, b) => clamp((T - a) / (b - a), 0, 1);
+const GOLD_SPARK = [0xffd166, 0xfff4c2, 0xffffff], CONFETTI = [0xff5c8a, 0xffd166, 0x7bdcff, 0xffffff, 0xb892ff], PINKS = [0xff5c8a, 0xff9ab0, 0xffd7e4];
+const chime = () => [784, 988, 1175, 1568].forEach((f, i) => audio.tone(f, 0.55, 'triangle', 0.08, i * 0.1));
+
+/* Hạt dùng chung cho kim tuyến / tim bay: một InstancedMesh, tái sử dụng chỗ trống nên không tạo vật thể mới khi chạy. */
+function makeParticles(geo, n, gravity) {
+  const mesh = makeInst(geo, new THREE.MeshBasicMaterial({ color: 0xffffff }), n, false, false), P = [];
+  for (let i = 0; i < n; i++) { P.push({ life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s: 1, c: 0xffffff }); setInst(mesh, i, 0, -50, 0, 0, 0, 0, 0, 0xffffff); }
+  finishInst(mesh); mesh.visible = false; scene.add(mesh);
+  return {
+    mesh, dirty: false,
+    emit(x, y, z, count, colors, speed, up) {
+      let left = count;
+      for (let i = 0; i < n && left > 0; i++) {
+        const p = P[i]; if (p.life > 0) continue; left--;
+        const a = Math.random() * Math.PI * 2, r = (0.4 + Math.random() * 0.6) * speed;
+        p.x = x; p.y = y; p.z = z; p.vx = Math.cos(a) * r; p.vz = Math.sin(a) * r; p.vy = up * (0.5 + Math.random());
+        p.life = 1.3 + Math.random() * 0.9; p.s = 0.7 + Math.random() * 0.6; p.c = colors[(Math.random() * colors.length) | 0];
+      }
+      this.dirty = mesh.visible = true;
+    },
+    update(dt) {
+      if (!this.dirty) return; let alive = false;
+      for (let i = 0; i < n; i++) {
+        const p = P[i]; if (p.life <= 0) continue;
+        p.life -= dt;
+        if (p.life <= 0) { setInst(mesh, i, 0, -50, 0, 0, 0, 0, 0, 0xffffff); continue; }
+        alive = true; p.vy -= gravity * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+        setInst(mesh, i, p.x, p.y, p.z, p.life * 5, p.s * Math.min(1, p.life * 2.5), undefined, undefined, p.c);
+      }
+      finishInst(mesh); this.dirty = alive; if (!alive) mesh.visible = false;
+    },
+  };
+}
+const sparks = makeParticles(new THREE.OctahedronGeometry(0.05), 90, 4);
+const hearts = makeParticles(heartGeo(0.1, 0.04), 40, -0.35);
+
+const ceremony = {
+  clock: 0, seen: { ring: false, cake: false }, nudged: { ring: false, cake: false },
+  tick(dt) {                                           // chỉ nhắc nhẹ một lần mỗi sự kiện, không bao giờ tự cắt ngang hoạt động đang chơi
+    this.clock += dt;
+    if (G.act) return;
+    if (!this.nudged.ring && this.clock > CER.nudgeRing) { this.nudged.ring = true; if (!this.seen.ring) showHint('Cô dâu chú rể sắp trao nhẫn! Ra vòng sáng "Xem trao nhẫn" ở góc trái trước sân khấu nhé ♥', 9000); }
+    else if (!this.nudged.cake && this.clock > CER.nudgeCake) { this.nudged.cake = true; if (!this.seen.cake) showHint('Bánh cưới trên sân khấu chờ cắt rồi! Ra vòng sáng "Xem cắt bánh" ở góc phải trước sân khấu nhé ♥', 9000); }
+  },
+};
+
+const CER_CAPS = {
+  ring: [[0.3, 'Xin mời cô dâu chú rể trao nhẫn cưới cho nhau!'], [4.6, 'Chú rể Quốc Tuân đeo nhẫn cho cô dâu Ngọc Khánh'], [8.9, 'Cô dâu Ngọc Khánh đeo nhẫn cho chú rể Quốc Tuân'], [12.8, 'Chúc mừng hai bạn! Trăm năm hạnh phúc ♥']],
+  cake: [[0.3, 'Xin mời cô dâu chú rể cắt bánh cưới!'], [4.0, 'Cắt bánh rồi! Chúc hai bạn ngọt ngào ♥'], [6.2, 'Đút bánh cho nhau nào!'], [12.4, 'Chúc mừng hai bạn! Trăm năm hạnh phúc ♥']],
+};
+const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
+const handW = (arm, out) => { arm.updateWorldMatrix(true, false); return arm.localToWorld(out.set(0, -0.45, 0.02)); };
+function snapCamera() {                               // đặt máy quay ngay sau lưng người chơi (không lướt từ cảnh quay riêng về)
+  const cp = Math.cos(cam.pitch);
+  camera.position.set(player.x + Math.sin(cam.yaw) * cp * cam.dist, Math.max(CFG.camHeight + Math.sin(cam.pitch) * cam.dist, 0.6), player.z + Math.cos(cam.yaw) * cp * cam.dist);
+  cam.look.set(player.x, cam.lookY, player.z); camera.lookAt(cam.look);
+}
+
+const ceremonyAct = {
+  kind: 'ring', t: 0, capIdx: -1, ready: false, ending: false, endAt: 0, skipped: false, fired: {}, hAt: 0, props: null,
+  build() {
+    if (this.props) return;
+    const ring = () => {
+      const g = new THREE.Group(); g.scale.setScalar(2.4); g.visible = false;
+      put(g, new THREE.TorusGeometry(0.045, 0.011, 8, 18), M(0xffd166), 0, 0, 0, false, false);
+      put(g, new THREE.OctahedronGeometry(0.02), new THREE.MeshBasicMaterial({ color: 0xbff3ff }), 0, 0.055, 0, false, false);
+      scene.add(g); return g;
+    };
+    const knife = new THREE.Group(); knife.visible = false;
+    put(knife, new THREE.BoxGeometry(0.035, 0.035, 0.12), M(0x5a2a1a), 0, 0, -0.04, false, false);
+    put(knife, new THREE.BoxGeometry(0.014, 0.05, 0.3), M(0xdfe6ee), 0, 0, 0.17, false, false);
+    scene.add(knife);
+    const piece = (arm) => {                           // miếng bánh nhỏ gắn vào bàn tay
+      const g = new THREE.Group(); g.visible = false; g.position.set(0, -0.43, 0.07);
+      put(g, new THREE.BoxGeometry(0.11, 0.07, 0.11), M(0xffc2d6), 0, 0, 0, false, false);
+      put(g, new THREE.BoxGeometry(0.115, 0.025, 0.115), M(0xfff0f5), 0, 0.045, 0, false, false);
+      arm.add(g); return g;
+    };
+    this.props = { ring1: ring(), ring2: ring(), knife, pieceG: piece(coupleRigs[0].armL), pieceB: piece(coupleRigs[1].armR) };   // tay phía khán giả cầm dao và bánh
+  },
+  enter() {
+    this.kind = this.spot.kind; this.t = 0; this.capIdx = -1; this.ready = this.ending = this.skipped = false; this.fired = {}; this.hAt = 0;
+    this.build(); player.group.visible = false; crowd.target = 0; $('hint').style.opacity = 0;
+    const f = $('cerFade'); f.style.transition = 'none'; f.style.opacity = 0; void f.offsetWidth; f.style.transition = ''; f.style.opacity = 1;   // tối dần
+    $('cerCap').style.opacity = 0; $('cerSkip').style.display = 'block'; $('cerUI').style.display = 'block';
+  },
+  setup() {                                            // đang tối màn: dựng cảnh quay rồi sáng lại
+    const [g, b] = couple, ring = this.kind === 'ring';
+    cam.free = { pos: new THREE.Vector3(0, 2.15, -12.8), look: new THREE.Vector3(0, 1.85, -17.2) };      // cảnh quay sân khấu, dùng chung cho trao nhẫn và cắt bánh
+    couple[2].visible = false;                                         // mẹ cô dâu đứng cạnh bàn bánh, tránh lọt vào khung hình
+    camera.position.copy(cam.free.pos); cam.look.copy(cam.free.look); camera.lookAt(cam.look);
+    ledScreen.set(ring ? 'TRAO NHẪN CƯỚI' : 'CẮT BÁNH CƯỚI');
+    this.ready = true; $('cerFade').style.opacity = 0;
+  },
+  skip() {
+    if (G.act !== this || this.ending) return;
+    this.skipped = true; this.begin();
+  },
+  begin() { this.ending = true; this.endAt = this.t + 0.6; $('cerFade').style.opacity = 1; $('cerCap').style.opacity = 0; },
+  update(dt) {
+    this.t += dt;
+    if (this.ending) { if (this.t >= this.endAt) this.finish(); return; }
+    if (!this.ready) { if (this.t >= 0.6) this.setup(); return; }
+    const T = this.t - 1.0;
+    if (T < 0) return;
+    if (this.kind === 'ring') this.ringScene(T, dt); else this.cakeScene(T, dt);
+    const caps = CER_CAPS[this.kind]; let idx = -1; caps.forEach((c, i) => { if (T >= c[0]) idx = i; });
+    if (idx !== this.capIdx) { this.capIdx = idx; const el = $('cerCap'); el.textContent = caps[idx][1]; el.style.opacity = 1; }
+    if (T >= CER.end) this.begin();
+  },
+  once(key, fn) { if (!this.fired[key]) { this.fired[key] = 1; fn(); } },
+  ringScene(T) {
+    const [g, b] = couple, rg = coupleRigs[0], rb = coupleRigs[1], P = this.props, k = ease(seg(T, 0, 1.6));
+    g.position.x = lerp(-0.85, -0.5, k); b.position.x = lerp(0.85, 0.5, k);                    // đứng sát nhau (đầu vẫn không chạm), hai bàn tay chạm vào nhau ở giữa
+    g.rotation.y = lerp(0.15, 1.4, k); b.rotation.y = lerp(-0.15, -1.4, k);
+    const up = ease(seg(T, 1.2, 2.6)), swap = ease(seg(T, 7.4, 8.4));                            // người đeo giơ tay cao hơn, người được đeo đưa tay thấp hơn; đến lượt hai thì đổi chỗ
+    rg.armL.rotation.x = -up * lerp(1.4, 1.2, swap); rb.armR.rotation.x = -up * lerp(1.2, 1.4, swap);
+    handW(rg.armL, _h1); handW(rb.armR, _h2);
+    if (T >= 2.4) {                                                                              // chú rể cầm nhẫn trên tay rồi đeo vào tay cô dâu
+      const u = ease(seg(T, 4.6, 5.6)); P.ring1.visible = true;
+      P.ring1.position.lerpVectors(_h1, _h2, u); P.ring1.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
+    }
+    if (T >= 5.6) this.once('a', () => { sparks.emit(P.ring1.position.x, P.ring1.position.y, P.ring1.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 0.8; });
+    if (T >= 7.4) {                                                                              // cô dâu đeo nhẫn cho chú rể
+      const u = ease(seg(T, 9.3, 10.3)); P.ring2.visible = true;
+      P.ring2.position.lerpVectors(_h2, _h1, u); P.ring2.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
+    }
+    if (T >= 10.3) this.once('b', () => { sparks.emit(P.ring2.position.x, P.ring2.position.y, P.ring2.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 1; });
+    if (T >= 11.5 && T < 15 && T - this.hAt > 0.25) { this.hAt = T; hearts.emit(rand() * 1.2 - 0.6, CFG.stage.h + 1.7, -16.9, 2, PINKS, 0.5, 1.1); }
+    const q = seg(T, 3, 12), f = cam.free;                                                       // máy quay tiến dần vào
+    f.pos.set(0, lerp(2.15, 2.0, q), lerp(-12.8, -13.8, q));
+  },
+  cakeScene(T) {
+    const [g, b] = couple, rg = coupleRigs[0], rb = coupleRigs[1], P = this.props;
+    const k = ease(seg(T, 0, 1.6)), feed = ease(seg(T, 5.6, 6.4)), down = ease(seg(T, 10.4, 11.4));
+    const gap = lerp(0.5, 0.46, feed);                                                          // lại gần nhau hơn khi đút bánh
+    g.position.x = lerp(-0.85, -gap, k); b.position.x = lerp(0.85, gap, k);
+    g.rotation.y = lerp(0.15, 1.4, k); b.rotation.y = lerp(-0.15, -1.4, k);
+    const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6));
+    const bob = T > 8 && T < 10.4 ? Math.sin(T * 9) * 0.06 : 0;
+    const a = lerp(lerp(0, -1.4, raise), -2.55, feedUp) * (1 - down) + bob;
+    rg.armL.rotation.x = rb.armR.rotation.x = a;                                                 // hai bàn tay phía khán giả
+    const K = P.knife;
+    if (T >= 1.4 && T < 5.4) {                                                                   // dao nằm giữa hai bàn tay, đẩy vào bánh (hướng -z) rồi rút ra
+      K.visible = true; K.rotation.y = Math.PI; handW(rg.armL, _h1); handW(rb.armR, _h2);
+      K.position.copy(_h1).add(_h2).multiplyScalar(0.5); K.position.y += 0.02;
+      K.position.z -= 0.14 * ease(seg(T, 2.4, 3.6)) - 0.14 * ease(seg(T, 4.4, 5.2));
+    } else K.visible = false;
+    if (T >= 3.6) this.once('cut', () => {
+      sparks.emit(0, 2.6, -16.9, 50, CONFETTI, 1.8, 3.2); audio.noise(0.18, 0.25, 500); audio.tone(520, 0.12, 'square', 0.05); chime();
+      crowd.target = 1;                                                                          // khán giả vỗ tay (file tiếng vỗ tay, phát trong updateCrowd)
+    });
+    P.pieceG.visible = P.pieceB.visible = T >= 5.6 && T < 8.6;
+    if (T >= 8.6) this.once('eat', () => { hearts.emit(0, 2.5, -16.9, 14, PINKS, 0.9, 1.6); audio.tone(660, 0.12, 'sine', 0.05); });
+    const q = seg(T, 3, 12), f = cam.free; f.pos.set(0, lerp(2.15, 2.0, q), lerp(-12.8, -13.8, q));
+  },
+  finish() {
+    if (!this.skipped) party.add(ceremony.seen[this.kind] ? CER.ptsAgain : CER.pts);
+    ceremony.seen[this.kind] = true;
+    const skipped = this.skipped; exitAct(); snapCamera();
+    if (!skipped) showHint(this.kind === 'ring' ? 'Cô dâu chú rể đã trao nhẫn cho nhau, chúc mừng hai bạn!' : 'Bánh cưới đã cắt xong, ai cũng được chia một miếng ngọt!', 6000);
+  },
+  exit() {
+    const P = this.props, [g, b] = couple;
+    P.ring1.visible = P.ring2.visible = P.knife.visible = P.pieceG.visible = P.pieceB.visible = false;
+    g.position.set(-0.85, CFG.stage.h, -17.2); g.rotation.y = 0.15; b.position.set(0.85, CFG.stage.h, -17.2); b.rotation.y = -0.15;
+    coupleRigs.forEach((r) => poseWalker(r, 0, 0, false));
+    player.group.visible = true; couple[2].visible = true; cam.free = null; crowd.target = 0;
+    if (!ledHoldUntil) ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
+    $('cerCap').style.opacity = 0; $('cerSkip').style.display = 'none'; $('cerFade').style.opacity = 0;
+    setTimeout(() => { if (G.act !== this) $('cerUI').style.display = 'none'; }, 700);
+  },
+};
+$('cerSkip').addEventListener('click', (e) => { e.currentTarget.blur(); ceremonyAct.skip(); });
+addEventListener('keydown', (e) => { if (G.act === ceremonyAct && e.code === 'Escape') ceremonyAct.skip(); });
+
+/* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
    ===================================================================== */
 const store = {
@@ -2150,7 +2350,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio };
+window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
