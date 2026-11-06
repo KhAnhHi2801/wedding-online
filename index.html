@@ -1063,7 +1063,7 @@ function buildCouple() {
   ];
   for (const [o, name, x, ry] of defs) {
     const c = buildCharacter(o, name);
-    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 2.02; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig);
+    c.g.position.set(x, CFG.stage.h, -17.2); c.g.rotation.y = ry; c.tag.scale.set(1.25, 0.235, 1); c.tag.position.y = 2.02; scene.add(c.g); couple.push(c.g); coupleRigs.push(c.rig); coupleTags.push(c.tag);
   }
   const mom = buildCharacter({ kind: 'aodai', top: 0xc2185b, bottom: 0xfff4e0, arm: 0xc2185b, hair: 0x6b6b6b, bun: true }, 'Mẹ cô dâu');
   mom.g.position.set(MOM.rest.x, 0, MOM.rest.z); mom.g.rotation.y = MOM.restRot; mom.tag.scale.set(1.25, 0.235, 1); mom.tag.position.y = 2.02;
@@ -1079,7 +1079,7 @@ function makeEnvelope() {                                          // bao lì x�
 }
 /* Mẹ cô dâu: đứng cạnh thảm đỏ, nhận mâm quả rồi lì xì cho người bê tráp (trayAct.giftStep). */
 const MOM = { restRot: -Math.PI / 4, rest: { x: 2.5, z: -13.9 }, meet: { x: 1.2, z: -13.3 }, g: null, rig: null, env: null };
-const couple = [], coupleRigs = [];                  // [chú rể, cô dâu]: nhóm 3D (ẩn khi camera karaoke ở sau lưng ca sĩ) và khung xương để làm động tác
+const couple = [], coupleRigs = [], coupleTags = [];                  // [chú rể, cô dâu]: nhóm 3D (ẩn khi camera karaoke ở sau lưng ca sĩ) và khung xương để làm động tác
 
 /* ---- Bàn mâm quả cạnh cổng = điểm bắt đầu hoạt động 1 ---- */
 function buildActivitySpots() {
@@ -2118,7 +2118,7 @@ $('wishDoneBtn').addEventListener('click', (e) => { e.currentTarget.blur(); wish
    Máy quay chuyển sang cảnh quay riêng (cam.free) qua một nhịp tối màn, cô dâu chú rể diễn theo dòng thời gian T (giây kể từ lúc sáng lại). Có nút Bỏ qua.
    Lần đầu xem hết mỗi sự kiện được nhiều điểm Vui, các lần sau ít để không cày điểm bằng cách xem lại.
    ===================================================================== */
-const CER = { nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
+const CER = { ringZ: -16.4, ringGap: 0.5, ringTurn: 0.25, ringReach: 0.45, turn: 0.3, reach: 0.55, z: -16.75, nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
 const seg = (T, a, b) => clamp((T - a) / (b - a), 0, 1);
 const GOLD_SPARK = [0xffd166, 0xfff4c2, 0xffffff], CONFETTI = [0xff5c8a, 0xffd166, 0x7bdcff, 0xffffff, 0xb892ff], PINKS = [0xff5c8a, 0xff9ab0, 0xffd7e4];
 const chime = () => [784, 988, 1175, 1568].forEach((f, i) => audio.tone(f, 0.55, 'triangle', 0.08, i * 0.1));
@@ -2198,7 +2198,7 @@ const ceremonyAct = {
       put(g, new THREE.BoxGeometry(0.115, 0.025, 0.115), M(0xfff0f5), 0, 0.045, 0, false, false);
       arm.add(g); return g;
     };
-    this.props = { ring1: ring(), ring2: ring(), knife, pieceG: piece(coupleRigs[0].armL), pieceB: piece(coupleRigs[1].armR) };   // tay phía khán giả cầm dao và bánh
+    this.props = { ring1: ring(), ring2: ring(), knife, pieceG: piece(coupleRigs[0].armR), pieceB: piece(coupleRigs[1].armL) };   // tay phía khán giả cầm dao và bánh
   },
   enter() {
     this.kind = this.spot.kind; this.t = 0; this.capIdx = -1; this.ready = this.ending = this.skipped = false; this.fired = {}; this.hAt = 0;
@@ -2209,6 +2209,7 @@ const ceremonyAct = {
   setup() {                                            // đang tối màn: dựng cảnh quay rồi sáng lại
     const [g, b] = couple, ring = this.kind === 'ring';
     cam.free = { pos: new THREE.Vector3(0, 2.15, -12.8), look: new THREE.Vector3(0, 1.85, -17.2) };      // cảnh quay sân khấu, dùng chung cho trao nhẫn và cắt bánh
+    coupleTags[0].visible = coupleTags[1].visible = false;                            // bỏ nhãn tên cho đỡ rối mặt
     couple[2].visible = false;                                         // mẹ cô dâu đứng cạnh bàn bánh, tránh lọt vào khung hình
     camera.position.copy(cam.free.pos); cam.look.copy(cam.free.look); camera.lookAt(cam.look);
     ledScreen.set(ring ? 'TRAO NHẪN CƯỚI' : 'CẮT BÁNH CƯỚI');
@@ -2232,12 +2233,15 @@ const ceremonyAct = {
   },
   once(key, fn) { if (!this.fired[key]) { this.fired[key] = 1; fn(); } },
   ringScene(T) {
+    const up0 = (t) => ease(seg(t, 1.2, 2.6));
     const [g, b] = couple, rg = coupleRigs[0], rb = coupleRigs[1], P = this.props, k = ease(seg(T, 0, 1.6));
-    g.position.x = lerp(-0.85, -0.5, k); b.position.x = lerp(0.85, 0.5, k);                    // đứng sát nhau (đầu vẫn không chạm), hai bàn tay chạm vào nhau ở giữa
-    g.rotation.y = lerp(0.15, 1.4, k); b.rotation.y = lerp(-0.15, -1.4, k);
-    const up = ease(seg(T, 1.2, 2.6)), swap = ease(seg(T, 7.4, 8.4));                            // người đeo giơ tay cao hơn, người được đeo đưa tay thấp hơn; đến lượt hai thì đổi chỗ
-    rg.armL.rotation.x = -up * lerp(1.4, 1.2, swap); rb.armR.rotation.x = -up * lerp(1.2, 1.4, swap);
-    handW(rg.armL, _h1); handW(rb.armR, _h2);
+    const zz = lerp(-17.2, CER.ringZ, k);                                                       // bước lên phía trước bánh, đứng cạnh nhau nhìn ra khán giả, hai bàn tay chụm vào nhau ở giữa
+    g.position.set(lerp(-0.85, -CER.ringGap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, CER.ringGap, k), CFG.stage.h, zz);
+    g.rotation.y = lerp(0.15, CER.ringTurn, k); b.rotation.y = lerp(-0.15, -CER.ringTurn, k);
+    rg.armR.rotation.z = up0(T) * CER.ringReach; rb.armL.rotation.z = -up0(T) * CER.ringReach;
+    const up = up0(T), swap = ease(seg(T, 7.4, 8.4));                            // người đeo giơ tay cao hơn, người được đeo đưa tay thấp hơn; đến lượt hai thì đổi chỗ
+    rg.armR.rotation.x = -up * lerp(1.4, 1.2, swap); rb.armL.rotation.x = -up * lerp(1.2, 1.4, swap);
+    handW(rg.armR, _h1); handW(rb.armL, _h2);
     if (T >= 2.4) {                                                                              // chú rể cầm nhẫn trên tay rồi đeo vào tay cô dâu
       const u = ease(seg(T, 4.6, 5.6)); P.ring1.visible = true;
       P.ring1.position.lerpVectors(_h1, _h2, u); P.ring1.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
@@ -2255,16 +2259,17 @@ const ceremonyAct = {
   cakeScene(T) {
     const [g, b] = couple, rg = coupleRigs[0], rb = coupleRigs[1], P = this.props;
     const k = ease(seg(T, 0, 1.6)), feed = ease(seg(T, 5.6, 6.4)), down = ease(seg(T, 10.4, 11.4));
-    const gap = lerp(0.5, 0.46, feed);                                                          // lại gần nhau hơn khi đút bánh
-    g.position.x = lerp(-0.85, -gap, k); b.position.x = lerp(0.85, gap, k);
-    g.rotation.y = lerp(0.15, 1.4, k); b.rotation.y = lerp(-0.15, -1.4, k);
-    const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6));
+    const gap = 0.55, zz = lerp(-17.2, CER.z, k);                            // đứng cạnh nhau sau bánh, hai tay chụm trên tầng dưới; lúc đút bánh mới quay vào nhau
+    g.position.set(lerp(-0.85, -gap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, gap, k), CFG.stage.h, zz);
+    const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6)), tn = lerp(CER.turn, 0.45, feed);
+    g.rotation.y = lerp(0.15, tn, k); b.rotation.y = lerp(-0.15, -tn, k);
+    rg.armR.rotation.z = raise * lerp(CER.reach, 0.2, feedUp); rb.armL.rotation.z = -raise * lerp(CER.reach, 0.2, feedUp);
     const bob = T > 8 && T < 10.4 ? Math.sin(T * 9) * 0.06 : 0;
-    const a = lerp(lerp(0, -1.4, raise), -2.55, feedUp) * (1 - down) + bob;
-    rg.armL.rotation.x = rb.armR.rotation.x = a;                                                 // hai bàn tay phía khán giả
+    const a = lerp(lerp(0, -1.6, raise), -2.55, feedUp) * (1 - down) + bob;
+    rg.armR.rotation.x = rb.armL.rotation.x = a;                                                 // hai bàn tay phía khán giả
     const K = P.knife;
     if (T >= 1.4 && T < 5.4) {                                                                   // dao nằm giữa hai bàn tay, đẩy vào bánh (hướng -z) rồi rút ra
-      K.visible = true; K.rotation.y = Math.PI; handW(rg.armL, _h1); handW(rb.armR, _h2);
+      K.visible = true; K.rotation.y = Math.PI; handW(rg.armR, _h1); handW(rb.armL, _h2);
       K.position.copy(_h1).add(_h2).multiplyScalar(0.5); K.position.y += 0.02;
       K.position.z -= 0.14 * ease(seg(T, 2.4, 3.6)) - 0.14 * ease(seg(T, 4.4, 5.2));
     } else K.visible = false;
@@ -2286,7 +2291,8 @@ const ceremonyAct = {
     const P = this.props, [g, b] = couple;
     P.ring1.visible = P.ring2.visible = P.knife.visible = P.pieceG.visible = P.pieceB.visible = false;
     g.position.set(-0.85, CFG.stage.h, -17.2); g.rotation.y = 0.15; b.position.set(0.85, CFG.stage.h, -17.2); b.rotation.y = -0.15;
-    coupleRigs.forEach((r) => poseWalker(r, 0, 0, false));
+    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; });
+    coupleTags[0].visible = coupleTags[1].visible = true;
     player.group.visible = true; couple[2].visible = true; cam.free = null; crowd.target = 0;
     if (!ledHoldUntil) ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
     $('cerCap').style.opacity = 0; $('cerSkip').style.display = 'none'; $('cerFade').style.opacity = 0;
