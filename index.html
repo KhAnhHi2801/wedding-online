@@ -808,14 +808,16 @@ function buildCharacter(o, name) {
   const g = new THREE.Group(), skin = M(0xffd7b5), hairMat = M(o.hair), topMat = M(o.top), botMat = M(o.bottom), armMat = M(o.arm);
   const body = new THREE.Group(); g.add(body);
 
-  const legGeo = new THREE.CapsuleGeometry(0.09, 0.28, 3, 6), armGeo = new THREE.CapsuleGeometry(0.07, 0.26, 3, 6);
+  const legGeo = new THREE.CapsuleGeometry(0.09, 0.28, 3, 6), armGeo = new THREE.CapsuleGeometry(0.07, 0.1, 3, 6), foreGeo = new THREE.CapsuleGeometry(0.065, 0.1, 3, 6);
   const legMat = o.kind === 'dress' ? skin : botMat, mkLimb = (geo, mat, x, y, cy) => {
     const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p); put(p, geo, mat, 0, cy, 0); return p;
   };
   const legL = mkLimb(legGeo, legMat, -0.13, 0.5, -0.25), legR = mkLimb(legGeo, legMat, 0.13, 0.5, -0.25);
-  const armL = mkLimb(armGeo, armMat, -0.31, 0.97, -0.18), armR = mkLimb(armGeo, armMat, 0.31, 0.97, -0.18);
+  const armL = mkLimb(armGeo, armMat, -0.31, 0.97, -0.1), armR = mkLimb(armGeo, armMat, 0.31, 0.97, -0.1);
+  const mkElbow = (arm) => { const e = new THREE.Group(); e.position.y = -0.2; arm.add(e); put(e, foreGeo, armMat, 0, -0.1, 0); return e; };   // khuỷu tay: cẳng tay xoay riêng, để thẳng thì giống cánh tay liền
+  const elbowL = mkElbow(armL), elbowR = mkElbow(armR);
   const handGeo = new THREE.SphereGeometry(0.075, 8, 6), shoeGeo = new THREE.BoxGeometry(0.16, 0.07, 0.25), shoeMat = M(0x2b2230);
-  for (const a of [armL, armR]) put(a, handGeo, skin, 0, -0.4, 0.01);                                         // bàn tay
+  for (const e of [elbowL, elbowR]) put(e, handGeo, skin, 0, -0.2, 0.01);                                         // bàn tay
   for (const l of [legL, legR]) put(l, shoeGeo, shoeMat, 0, -0.47, 0.04);                                    // giày
 
   if (o.kind === 'aodai') {
@@ -855,7 +857,7 @@ function buildCharacter(o, name) {
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false })); tag.scale.set(2.1, 0.39, 1); tag.position.set(0, 2.37, 0);
   g.add(tag);
 
-  return { g, rig: { body, legL, legR, armL, armR }, tag };
+  return { g, rig: { body, legL, legR, armL, armR, elbowL, elbowR }, tag };
 }
 
 /* =====================================================================
@@ -2118,7 +2120,7 @@ $('wishDoneBtn').addEventListener('click', (e) => { e.currentTarget.blur(); wish
    Máy quay chuyển sang cảnh quay riêng (cam.free) qua một nhịp tối màn, cô dâu chú rể diễn theo dòng thời gian T (giây kể từ lúc sáng lại). Có nút Bỏ qua.
    Lần đầu xem hết mỗi sự kiện được nhiều điểm Vui, các lần sau ít để không cày điểm bằng cách xem lại.
    ===================================================================== */
-const CER = { ringZ: -16.4, ringGap: 0.5, ringTurn: 0.25, ringReach: 0.45, turn: 0.3, reach: 0.55, z: -16.75, nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
+const CER = { ringZ: -16.4, ringGap: 0.5, ringTurn: 0.25, ringReach: 0.12, turn: 0.3, reach: 0.3, z: -16.75, nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
 const seg = (T, a, b) => clamp((T - a) / (b - a), 0, 1);
 const GOLD_SPARK = [0xffd166, 0xfff4c2, 0xffffff], CONFETTI = [0xff5c8a, 0xffd166, 0x7bdcff, 0xffffff, 0xb892ff], PINKS = [0xff5c8a, 0xff9ab0, 0xffd7e4];
 const chime = () => [784, 988, 1175, 1568].forEach((f, i) => audio.tone(f, 0.55, 'triangle', 0.08, i * 0.1));
@@ -2171,7 +2173,13 @@ const CER_CAPS = {
   cake: [[0.3, 'Xin mời cô dâu chú rể cắt bánh cưới!'], [4.0, 'Cắt bánh rồi! Chúc hai bạn ngọt ngào ♥'], [6.2, 'Đút bánh cho nhau nào!'], [12.4, 'Chúc mừng hai bạn! Trăm năm hạnh phúc ♥']],
 };
 const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
-const handW = (arm, out) => { arm.updateWorldMatrix(true, false); return arm.localToWorld(out.set(0, -0.45, 0.02)); };
+const handW = (elbow, out) => { elbow.updateWorldMatrix(true, false); return elbow.localToWorld(out.set(0, -0.25, 0.02)); };
+// Đưa một cánh tay ra trước, khuỷu gập: pitch = góc nâng tổng (rad), side = +1 khép sang phải / -1 sang trái, k = mức khép về giữa
+function reachArm(rig, which, pitch, side, k) {
+  const arm = rig['arm' + which], el = rig['elbow' + which];
+  arm.rotation.x = -0.35 * pitch; el.rotation.x = -0.65 * pitch;
+  arm.rotation.z = side * 0.45 * k; el.rotation.z = side * 0.8 * k;
+}
 function snapCamera() {                               // đặt máy quay ngay sau lưng người chơi (không lướt từ cảnh quay riêng về)
   const cp = Math.cos(cam.pitch);
   camera.position.set(player.x + Math.sin(cam.yaw) * cp * cam.dist, Math.max(CFG.camHeight + Math.sin(cam.pitch) * cam.dist, 0.6), player.z + Math.cos(cam.yaw) * cp * cam.dist);
@@ -2193,12 +2201,12 @@ const ceremonyAct = {
     put(knife, new THREE.BoxGeometry(0.014, 0.05, 0.3), M(0xdfe6ee), 0, 0, 0.17, false, false);
     scene.add(knife);
     const piece = (arm) => {                           // miếng bánh nhỏ gắn vào bàn tay
-      const g = new THREE.Group(); g.visible = false; g.position.set(0, -0.43, 0.07);
+      const g = new THREE.Group(); g.visible = false; g.position.set(0, -0.23, 0.07);
       put(g, new THREE.BoxGeometry(0.11, 0.07, 0.11), M(0xffc2d6), 0, 0, 0, false, false);
       put(g, new THREE.BoxGeometry(0.115, 0.025, 0.115), M(0xfff0f5), 0, 0.045, 0, false, false);
       arm.add(g); return g;
     };
-    this.props = { ring1: ring(), ring2: ring(), knife, pieceG: piece(coupleRigs[0].armR), pieceB: piece(coupleRigs[1].armL) };   // tay phía khán giả cầm dao và bánh
+    this.props = { ring1: ring(), ring2: ring(), knife, pieceG: piece(coupleRigs[0].elbowR), pieceB: piece(coupleRigs[1].elbowL) };   // tay phía khán giả cầm dao và bánh
   },
   enter() {
     this.kind = this.spot.kind; this.t = 0; this.capIdx = -1; this.ready = this.ending = this.skipped = false; this.fired = {}; this.hAt = 0;
@@ -2238,10 +2246,9 @@ const ceremonyAct = {
     const zz = lerp(-17.2, CER.ringZ, k);                                                       // bước lên phía trước bánh, đứng cạnh nhau nhìn ra khán giả, hai bàn tay chụm vào nhau ở giữa
     g.position.set(lerp(-0.85, -CER.ringGap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, CER.ringGap, k), CFG.stage.h, zz);
     g.rotation.y = lerp(0.15, CER.ringTurn, k); b.rotation.y = lerp(-0.15, -CER.ringTurn, k);
-    rg.armR.rotation.z = up0(T) * CER.ringReach; rb.armL.rotation.z = -up0(T) * CER.ringReach;
     const up = up0(T), swap = ease(seg(T, 7.4, 8.4));                            // người đeo giơ tay cao hơn, người được đeo đưa tay thấp hơn; đến lượt hai thì đổi chỗ
-    rg.armR.rotation.x = -up * lerp(1.4, 1.2, swap); rb.armL.rotation.x = -up * lerp(1.2, 1.4, swap);
-    handW(rg.armR, _h1); handW(rb.armL, _h2);
+    reachArm(rg, 'R', up * lerp(1.5, 1.25, swap), 1, up * CER.ringReach); reachArm(rb, 'L', up * lerp(1.25, 1.5, swap), -1, up * CER.ringReach);
+    handW(rg.elbowR, _h1); handW(rb.elbowL, _h2);
     if (T >= 2.4) {                                                                              // chú rể cầm nhẫn trên tay rồi đeo vào tay cô dâu
       const u = ease(seg(T, 4.6, 5.6)); P.ring1.visible = true;
       P.ring1.position.lerpVectors(_h1, _h2, u); P.ring1.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
@@ -2263,13 +2270,12 @@ const ceremonyAct = {
     g.position.set(lerp(-0.85, -gap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, gap, k), CFG.stage.h, zz);
     const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6)), tn = lerp(CER.turn, 0.45, feed);
     g.rotation.y = lerp(0.15, tn, k); b.rotation.y = lerp(-0.15, -tn, k);
-    rg.armR.rotation.z = raise * lerp(CER.reach, 0.2, feedUp); rb.armL.rotation.z = -raise * lerp(CER.reach, 0.2, feedUp);
     const bob = T > 8 && T < 10.4 ? Math.sin(T * 9) * 0.06 : 0;
     const a = lerp(lerp(0, -1.6, raise), -2.55, feedUp) * (1 - down) + bob;
-    rg.armR.rotation.x = rb.armL.rotation.x = a;                                                 // hai bàn tay phía khán giả
+    reachArm(rg, 'R', -a, 1, raise * lerp(CER.reach, 0.12, feedUp)); reachArm(rb, 'L', -a, -1, raise * lerp(CER.reach, 0.12, feedUp));   // hai tay trong khép vào giữa, khuỷu gập
     const K = P.knife;
     if (T >= 1.4 && T < 5.4) {                                                                   // dao nằm giữa hai bàn tay, đẩy vào bánh (hướng -z) rồi rút ra
-      K.visible = true; K.rotation.y = Math.PI; handW(rg.armR, _h1); handW(rb.armL, _h2);
+      K.visible = true; K.rotation.y = Math.PI; handW(rg.elbowR, _h1); handW(rb.elbowL, _h2);
       K.position.copy(_h1).add(_h2).multiplyScalar(0.5); K.position.y += 0.02;
       K.position.z -= 0.14 * ease(seg(T, 2.4, 3.6)) - 0.14 * ease(seg(T, 4.4, 5.2));
     } else K.visible = false;
@@ -2291,7 +2297,7 @@ const ceremonyAct = {
     const P = this.props, [g, b] = couple;
     P.ring1.visible = P.ring2.visible = P.knife.visible = P.pieceG.visible = P.pieceB.visible = false;
     g.position.set(-0.85, CFG.stage.h, -17.2); g.rotation.y = 0.15; b.position.set(0.85, CFG.stage.h, -17.2); b.rotation.y = -0.15;
-    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; });
+    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); });
     coupleTags[0].visible = coupleTags[1].visible = true;
     player.group.visible = true; couple[2].visible = true; cam.free = null; crowd.target = 0;
     if (!ledHoldUntil) ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
