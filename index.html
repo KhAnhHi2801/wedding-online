@@ -978,7 +978,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.started) {
     if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
-    toastAct.tick(); ceremony.tick(dt); npcLife.update(dt); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
+    toastAct.tick(); ceremony.tick(dt); npcLife.update(dt); ambience.update(); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
   }
   sparks.update(dt); hearts.update(dt);
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
@@ -1308,20 +1308,48 @@ const audio = {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(Math.max(vol, 0.0002), t + at); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random() * 0.3); s.stop(t + dur + 0.02);
   },
-  startPour() {                                     // tiếng nước rót: nhiễu lọc dải, cao dần theo mực nước (setPour)
+  startPour() {                                     // tiếng nước rót: ưu tiên file thật (khoá 'pour'), không có thì nhiễu lọc dải cao dần theo mực nước (setPour)
+    if (this.ctx && window.SFX_DATA && window.SFX_DATA.pour) { this.playSfx('pour', 0.9, true); return { file: true }; }
     if (!this.ctx || !this.pourBuf) return null;
     const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
     s.buffer = this.pourBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 0.8; g.gain.value = 0;
     g.gain.setTargetAtTime(0.5, c.currentTime, 0.08); s.connect(f); f.connect(g); g.connect(this.master); s.start();
     return { s, f, g };
   },
-  setPour(h, level) { if (h) h.f.frequency.setTargetAtTime(1200 + 2200 * Math.min(level, 1.1), this.ctx.currentTime, 0.12); },
+  setPour(h, level) {
+    if (h && h.file) { const k = this.sfxLive.pour; if (k && k.src) k.src.playbackRate.setTargetAtTime(0.92 + 0.22 * Math.min(level, 1.1), this.ctx.currentTime, 0.12); return; }   // đầy dần thì tiếng cao dần
+    if (h) h.f.frequency.setTargetAtTime(1200 + 2200 * Math.min(level, 1.1), this.ctx.currentTime, 0.12); },
   stopPour(h) {
+    if (h && h.file) { this.stopSfx('pour', 0.15); return; }
     if (!h) return; const c = this.ctx; h.g.gain.setTargetAtTime(0, c.currentTime, 0.06);
     try { h.s.stop(c.currentTime + 0.4); } catch { /* đã dừng */ }
     setTimeout(() => { try { h.s.disconnect(); h.f.disconnect(); h.g.disconnect(); } catch { /* đã gỡ */ } }, 500);
   },
-  clink(vol = 1) { this.tone(2093, 0.28, 'triangle', 0.1 * vol); this.tone(3136, 0.3, 'triangle', 0.06 * vol, 0.03); },
+  clink(vol = 1) {                                  // cụng ly: ba tần số không hài hoà + tiếng "tách" ngắn, mỗi lần lệch cao độ một chút
+    if (window.SFX_DATA && window.SFX_DATA.clink) { this.playSfx('clink', 0.8 * vol); return; }
+    const f = 0.94 + Math.random() * 0.14;
+    [2480, 3720, 5310].forEach((fr, i) => this.tone(fr * f, 0.42 - 0.1 * i, 'sine', (0.1 - 0.028 * i) * vol, i * 0.004));
+    this.noise(0.03, 0.05 * vol, 5000);
+  },
+  /* Tiếng MC qua loa kéo: "tạch" mở mic, rè nhẹ và vài âm tiết lầm bầm méo tiếng (không phải lời thật, chỉ gợi cảm giác có người đang nói). sec = độ dài. */
+  mc(sec = 1.5) {
+    if (!this.ctx) return;
+    if (window.SFX_DATA && window.SFX_DATA.mic) { this.playSfx('mic', 0.7); return; }
+    const c = this.ctx, t0 = c.currentTime + 0.02;
+    this.noise(0.06, 0.12, 2500, 0.02);                                  // mở mic
+    const hiss = c.createBufferSource(), hf = c.createBiquadFilter(), hg = c.createGain();
+    hiss.buffer = this.noiseBuf; hiss.loop = true; hf.type = 'bandpass'; hf.frequency.value = 2600; hf.Q.value = 0.7;
+    hg.gain.setValueAtTime(0.0001, t0); hg.gain.linearRampToValueAtTime(0.012, t0 + 0.08); hg.gain.setValueAtTime(0.012, t0 + sec); hg.gain.linearRampToValueAtTime(0.0001, t0 + sec + 0.15);
+    hiss.connect(hf); hf.connect(hg); hg.connect(this.master); hiss.start(t0); hiss.stop(t0 + sec + 0.2);
+    if (!this.micCurve) { const k = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; k[i] = Math.tanh(x * 4); } this.micCurve = k; }
+    for (let t = 0.1; t < sec - 0.05; t += 0.14 + Math.random() * 0.08) {      // âm tiết
+      const o = c.createOscillator(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), ws = c.createWaveShaper(), g = c.createGain(), at = t0 + t, d = 0.09 + Math.random() * 0.07, f0 = 120 + Math.random() * 40;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * (1 + Math.random() * 0.15), at); o.frequency.linearRampToValueAtTime(f0 * (0.85 + Math.random() * 0.3), at + d);
+      f1.type = 'bandpass'; f1.frequency.value = 450 + Math.random() * 450; f1.Q.value = 4; f2.type = 'bandpass'; f2.frequency.value = 1300 + Math.random() * 1200; f2.Q.value = 5;
+      ws.curve = this.micCurve; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.09, at + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + d);
+      o.connect(f1); f1.connect(ws); o.connect(f2); f2.connect(ws); ws.connect(g); g.connect(this.master); o.start(at); o.stop(at + d + 0.02);
+    }
+  },
   laugh() { for (let i = 0; i < 7; i++) this.tone(230 + Math.random() * 90, 0.1, 'sawtooth', 0.045, i * 0.13); this.noise(0.9, 0.05, 2500); },   // tiếng cười ồ tổng hợp
   /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
@@ -1366,6 +1394,46 @@ const audio = {
   },
 };
 $('mute').addEventListener('click', (e) => { audio.setMuted(!audio.muted); e.currentTarget.textContent = audio.muted ? '🔇' : '🔊'; e.currentTarget.blur(); });
+
+/* ---- Không khí tiệc: tiếng ồn đám đông, cụng ly và tiếng cười thỉnh thoảng (không có nhạc nền: đám đông đã đủ ồn) ----
+   Nền đám đông là file songs/Tiếng ồn ào trong quán nhậu.mp3 (khoá 'crowd'). Không có file thì dùng tiếng người nói xa xa tổng hợp. Mức to nhỏ tự hạ theo hoạt động. */
+const AMB = { crowd: 1.6, file: 0.4, clink: [7, 14], laugh: [28, 55], voice: [0.45, 1.5] };
+const ambience = {
+  on: false, c: -1, nextClink: 0, nextLaugh: 0, nextVoice: 0, crowdG: null,
+  start() {
+    const a = audio; if (this.on || !a.ctx) return;
+    this.on = true; this.crowdG = a.ctx.createGain(); this.crowdG.gain.value = 0; this.crowdG.connect(a.master);
+    const now = performance.now() / 1000; this.nextClink = now + 6; this.nextLaugh = now + 20; this.nextVoice = now + 1;
+  },
+  setLevel(c) {                                                                    // c: hệ số 0..1 cho đám đông
+    const t = audio.ctx.currentTime; this.crowdG.gain.setTargetAtTime(AMB.crowd * c, t, 0.5);
+    const k = audio.sfxLive.crowd; if (k && k.g) k.g.gain.setTargetAtTime(AMB.file * c, t, 0.5);   // file thật có mức riêng (khác bản tổng hợp)
+  },
+  voice() {                                                                        // một câu người nói xa xa, nghe không ra lời
+    const c = audio.ctx, n = 2 + Math.floor(Math.random() * 3), f0 = 110 + Math.random() * 130, t0 = c.currentTime + 0.02;
+    for (let k = 0; k < n; k++) {
+      const o = c.createOscillator(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain(), at = t0 + k * (0.13 + Math.random() * 0.07), d = 0.1 + Math.random() * 0.1;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * (0.9 + Math.random() * 0.25), at); o.frequency.linearRampToValueAtTime(f0 * (0.85 + Math.random() * 0.3), at + d);
+      f1.type = 'bandpass'; f1.frequency.value = 400 + Math.random() * 500; f1.Q.value = 3; f2.type = 'lowpass'; f2.frequency.value = 2200;
+      g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.04, at + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, at + d);
+      o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(this.crowdG); o.start(at); o.stop(at + d + 0.02);
+    }
+  },
+  update() {
+    if (!this.on) return;
+    const a = G.act, file = !!(window.SFX_DATA && window.SFX_DATA.crowd); let c = 1;       // hoạt động có tiếng riêng thì hạ tiếng nền xuống
+    if (a === karaokeAct) c = 0.12; else if (a === bouquetAct || a === trayAct || a === pourAct) c = 0.5; else if (a === ceremonyAct) c = 0.6; else if (a) c = 0.8;
+    if (document.hidden) c = 0;
+    if (c !== this.c) { this.c = c; this.setLevel(c); }
+    const now = performance.now() / 1000;
+    if (file && !audio.sfxLive.crowd) audio.playSfx('crowd', AMB.file * Math.max(this.c, 0), true);
+    if (c < 0.3) return;
+    if (!file && now > this.nextVoice) { this.nextVoice = now + AMB.voice[0] + Math.random() * (AMB.voice[1] - AMB.voice[0]); this.voice(); }
+    if (now > this.nextClink) { this.nextClink = now + AMB.clink[0] + Math.random() * (AMB.clink[1] - AMB.clink[0]); audio.clink(0.28 + Math.random() * 0.25); }
+    if (!file && now > this.nextLaugh) { this.nextLaugh = now + AMB.laugh[0] + Math.random() * (AMB.laugh[1] - AMB.laugh[0]); audio.laugh(); }
+  },
+};
+$('actBtn').addEventListener('pointerdown', () => audio.tone(740, 0.07, 'sine', 0.07));
 
 /* Khán giả: level 0..1 = mức nhiệt tình; target do hoạt động đặt. NPC chắp tay vỗ + nhún theo nhịp. */
 const crowd = { level: 0, target: 0, active: false, silent: false, prevTarget: 0 };   // silent: vẫn vỗ tay hình, nhưng không phát tiếng (karaoke cần nhạc sạch)
@@ -2244,7 +2312,7 @@ const ceremonyAct = {
     if (T < 0) return;
     if (this.kind === 'ring') this.ringScene(T, dt); else this.cakeScene(T, dt);
     const caps = CER_CAPS[this.kind]; let idx = -1; caps.forEach((c, i) => { if (T >= c[0]) idx = i; });
-    if (idx !== this.capIdx) { this.capIdx = idx; const el = $('cerCap'); el.textContent = caps[idx][1]; el.style.opacity = 1; }
+    if (idx !== this.capIdx) { this.capIdx = idx; const el = $('cerCap'); el.textContent = caps[idx][1]; el.style.opacity = 1; audio.mc(Math.min(2.4, 0.5 + caps[idx][1].length * 0.045)); }
     if (T >= CER.end) this.begin();
   },
   once(key, fn) { if (!this.fired[key]) { this.fired[key] = 1; fn(); } },
@@ -2464,7 +2532,7 @@ function enterParty() {
   if (!G.ready || G.started) return;
   G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
   store.set('name', $('nameIn').value.trim()); store.set('outfit', G.outfit);
-  audio.init();                                     // cú chạm này mở khoá âm thanh
+  audio.init(); ambience.start();                   // cú chạm này mở khoá âm thanh
   Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k), 400 + i * 600));   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
   buildPlayer(OUTFITS[G.outfit], G.name);
   cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
@@ -2484,7 +2552,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
+window.__ddc = { ambience, npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
