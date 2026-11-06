@@ -42,7 +42,9 @@
     padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)); }
   #counter { position:absolute; top:max(10px,env(safe-area-inset-top)); right:max(10px,env(safe-area-inset-right));
     background:rgba(11,16,48,.7); border:1px solid rgba(255,209,102,.4); border-radius:999px; padding:6px 12px; font-size:12.5px; }
-  #counter b { color:var(--gold); }
+  #counter b { color:var(--gold); display:inline-block; }
+  #counter.pop b { animation:cntPop .6s ease-out; }
+  @keyframes cntPop { 0% { transform:scale(1); } 30% { transform:scale(1.7); color:#fff; } 100% { transform:scale(1); } }
   #hint { position:absolute; left:50%; top:16%; transform:translateX(-50%); width:max-content; max-width:88vw; text-align:center;
     background:rgba(11,16,48,.72); border-radius:14px; padding:9px 14px; font-size:13.5px; transition:opacity .8s; }
   #fps { position:absolute; left:10px; top:54px; font:12px monospace; color:#9f9; display:none; }
@@ -738,6 +740,12 @@ function planNPCs() {
   }
   // 8 NPC dự phòng, ẩn sẵn (vis = 0): hoạt động Bắt hoa gọi ra nhảy lên; sau này dùng cho cảnh "đổ ra nhảy".
   for (let k = 0; k < 8; k++) npcs.push(Object.assign(make(0, -30, Math.PI, false, 'adult'), { reserve: true, vis: 0 }));
+  // Sống động: 5 đoàn khách mới (mỗi đoàn 3 người, ẩn sẵn, lần lượt đi vào cổng) và 2 bé chạy quanh lối bên. Dùng Math.random để không đổi bố cục cố định ở trên.
+  const rp = (a) => a[Math.floor(Math.random() * a.length)];
+  const life = (kind, extra) => ({ x: 0, z: -30, rot: Math.PI, seated: false, kind, scale: kind === 'kid' ? 0.62 : kind === 'elder' ? 0.93 : 0.97 + Math.random() * 0.08,
+    skin: rp(SKINS), hair: kind === 'elder' ? 0xe6e6e6 : rp(HAIRS), shirt: rp(SHIRTS), pants: rp(PANTS), ...extra });
+  for (let g = 0; g < 5; g++) for (const kind of ['adult', g % 2 ? 'elder' : 'adult', g % 2 ? 'adult' : 'kid']) npcs.push(life(kind, { arrive: g, vis: 0 }));
+  for (const sx of [-1, 1]) npcs.push(life('kid', { runner: true, x: sx * 7.4, z: sx * 3, rot: Math.random() * 6.28 }));
 }
 
 /* Đặt (hoặc đặt lại) toàn bộ bộ phận của NPC thứ i. hop = nhảy lên (m), clap 0..1 = tay chắp lại vỗ.
@@ -782,7 +790,7 @@ function buildNPCs() {
   let pi = 0, ti = 0;
   npcs.forEach((n, i) => { n.ph = Math.random() * 6.28; n.li = n.seated ? ti++ : pi++; placeNpc(i, 0, 0, true); });
   Object.values(NP).forEach(finishInst);
-  document.getElementById('count').textContent = npcs.filter((n) => !n.reserve).length + 1;     // +1 là người chơi; NPC dự phòng chưa tính
+  document.getElementById('count').textContent = npcs.filter((n) => !n.reserve && n.arrive === undefined).length + 1;     // +1 là người chơi; NPC dự phòng và khách chưa tới cổng chưa tính
 }
 
 /* =====================================================================
@@ -970,7 +978,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.started) {
     if (G.act) G.act.update(dt); else { updatePlayer(dt); updateSpots(); }
-    toastAct.tick(); ceremony.tick(dt); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
+    toastAct.tick(); ceremony.tick(dt); npcLife.update(dt); updateMarkers(now / 1000); updateCrowd(dt, now / 1000);
   }
   sparks.update(dt); hearts.update(dt);
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
@@ -2309,6 +2317,120 @@ $('cerSkip').addEventListener('click', (e) => { e.currentTarget.blur(); ceremony
 addEventListener('keydown', (e) => { if (G.act === ceremonyAct && e.code === 'Escape') ceremonyAct.skip(); });
 
 /* =====================================================================
+   20. NPC SỐNG ĐỘNG: bong bóng chữ (chỉ gắn cho NPC), đoàn khách mới vào cổng, bé chạy quanh lối bên
+   ===================================================================== */
+const _v = new THREE.Vector3();
+const LIFE = { firstArrival: 18, arriveGap: [28, 45], walk: 1.5, run: 2.7, sayGap: [2.4, 4.2], sayFor: 3.8, maxBubbles: 3, near: 2.6, far: 11, gateZ: 18 };
+const SAY = {
+  any: ['Trăm năm hạnh phúc!', 'Bao giờ tới lượt mày đấy?', 'Cho xin cái bánh!', 'Hát đi hát đi!', 'Cô dâu xinh quá!', 'Chú rể bảnh trai ghê!', 'Một, hai, ba, dzô!', 'Món này ngon ghê!',
+    'Đám cưới đẹp quá trời!', 'Chụp cho tôi tấm ảnh nhé!', 'Rót thêm ly nữa nào!', 'Hai bên gia đình vui quá!', 'Nhớ gửi phong bì nhé!', 'Ăn đi, còn nhiều lắm!'],
+  kid: ['Con muốn ăn kẹo!', 'Mẹ ơi, bánh đâu rồi?', 'Đuổi bắt nè!', 'Cô dâu đẹp như công chúa!', 'Cho con thêm nước ngọt!'],
+  elder: ['Trăm năm hạnh phúc nhé các con!', 'Ngày xưa bà cưới giản dị lắm.', 'Sinh cháu sớm cho ông bà nhé!', 'Hai đứa đẹp đôi quá!'],
+  arrive: ['Chúc mừng, chúc mừng!', 'Xin lỗi tới muộn nhé!', 'Chào cả nhà, đông vui quá!', 'Mừng hai cháu nhé!'],
+};
+const npcLife = {
+  t: 0, nextSay: 7, nextArrive: LIFE.firstArrival, groups: 0, total: 0, arr: {}, runners: [], walkers: [], bubbles: [], ready: false,
+  build() {
+    npcs.forEach((n, i) => { if (n.arrive !== undefined) (this.arr[n.arrive] = this.arr[n.arrive] || []).push(i); if (n.runner) this.runners.push({ i, wait: 1 + Math.random() * 2, tx: n.x, tz: n.z }); });
+    this.total = parseInt($('count').textContent, 10) || 0;
+    for (let k = 0; k < LIFE.maxBubbles; k++) {                         // sprite dùng lại, chỉ vẽ lại chữ khi đổi câu (không tạo vật thể mới mỗi khung)
+      const tex = canvasTex(512, 192, () => {});
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, opacity: 0 }));
+      spr.center.set(0.5, 0); spr.scale.set(2.3, 0.86, 1); spr.renderOrder = 20; spr.visible = false; scene.add(spr);
+      this.bubbles.push({ spr, tex, i: -1, age: 0, life: 0 });
+    }
+    this.ready = true;
+  },
+  draw(tex, text) {
+    const { g, c } = tex.userData, W = c.width, H = 140;
+    g.clearRect(0, 0, W, c.height);
+    g.fillStyle = 'rgba(255,255,255,.96)'; g.beginPath(); g.roundRect(8, 6, W - 16, H - 8, 34); g.fill();
+    g.beginPath(); g.moveTo(W / 2 - 18, H - 4); g.lineTo(W / 2, H + 40); g.lineTo(W / 2 + 18, H - 4); g.closePath(); g.fill();
+    g.fillStyle = '#3a1020'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let lines = [text];
+    if (text.length > 17) { const mid = text.length / 2; let cut = -1; for (let k = 0; k < text.length; k++) if (text[k] === ' ' && (cut < 0 || Math.abs(k - mid) < Math.abs(cut - mid))) cut = k; if (cut > 0) lines = [text.slice(0, cut), text.slice(cut + 1)]; }
+    let fs = lines.length > 1 ? 40 : 48; g.font = `bold ${fs}px ${FONT}`;
+    while (fs > 24 && Math.max(...lines.map((l) => g.measureText(l).width)) > W - 70) { fs -= 2; g.font = `bold ${fs}px ${FONT}`; }
+    lines.forEach((l, k) => g.fillText(l, W / 2, H / 2 + 2 + (k - (lines.length - 1) / 2) * (fs + 6)));
+    tex.needsUpdate = true;
+  },
+  say(i, text, life = LIFE.sayFor) {
+    const b = this.bubbles.find((x) => x.life <= 0); if (!b) return false;
+    b.i = i; b.age = 0; b.life = life; this.draw(b.tex, text); b.spr.visible = true; return true;
+  },
+  sayFor(n) { return pick2(n.arrive !== undefined && n.arrived ? SAY.arrive : n.kind === 'kid' ? SAY.kid.concat(SAY.any) : n.kind === 'elder' ? SAY.elder.concat(SAY.any) : SAY.any); },
+  speaker() {                                                          // NPC trong tầm nhìn, vừa đủ gần để đọc được
+    const busy = new Set(this.bubbles.filter((b) => b.life > 0).map((b) => b.i)), pool = [];
+    npcs.forEach((n, i) => {
+      if (n.reserve || n.vis === 0 || busy.has(i)) return;
+      const d = Math.hypot(n.x - player.x, n.z - player.z); if (d < LIFE.near || d > LIFE.far) return;
+      _v.set(n.x, 1.5 * n.scale, n.z).project(camera); if (_v.z > 1 || Math.abs(_v.x) > 0.8 || _v.y < -0.4 || _v.y > 0.7) return;
+      pool.push(i);
+    });
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : -1;
+  },
+  arrive() {                                                           // một đoàn khách mới đi từ ngoài cổng vào, đứng lại ở khoảng trống gần lối vào
+    const ids = this.arr[this.groups]; if (!ids) return;
+    let spot = null;
+    for (let t = 0; t < 60 && !spot; t++) {
+      const sx = Math.random() < 0.5 ? -1 : 1, x = sx * (2.6 + Math.random() * 4), z = 5 + Math.random() * 6;
+      if (isFree(x, z, 0.9) && Math.hypot(x - player.x, z - player.z) > 1.8) spot = [x, z];
+    }
+    if (!spot) { this.nextArrive = this.t + 10; return; }
+    this.groups++;
+    ids.forEach((i, k) => {
+      const n = npcs[i], ox = (k - 1) * 0.75, fx = clamp(spot[0] + ox, -14, 14), fz = spot[1] + (k % 2) * 0.5;
+      n.x = clamp(ox, -2, 2); n.z = LIFE.gateZ + 5 + k * 0.5; n.vis = 1; n.arrived = false;
+      this.walkers.push({ i, path: [[n.x * 0.5, LIFE.gateZ - 2], [fx, fz]], speed: LIFE.walk * (n.kind === 'kid' ? 1.15 : 1), k });
+    });
+    $('count').textContent = this.total += ids.length; $('counter').classList.remove('pop'); void $('counter').offsetWidth; $('counter').classList.add('pop');
+    if (!G.act && $('hint').style.opacity !== '1') showHint('Một đoàn khách mới vừa tới cổng, chào mừng nào!', 4500);
+    this.nextArrive = this.t + LIFE.arriveGap[0] + Math.random() * (LIFE.arriveGap[1] - LIFE.arriveGap[0]);
+  },
+  move(n, tx, tz, speed, dt) {                                         // đi thẳng tới điểm, quay mặt theo hướng đi; trả về true khi tới nơi
+    const dx = tx - n.x, dz = tz - n.z, d = Math.hypot(dx, dz);
+    if (d < 0.06) return true;
+    const st = Math.min(d, speed * dt); n.x += dx / d * st; n.z += dz / d * st;
+    const want = Math.atan2(dx, dz); let da = want - n.rot; da = Math.atan2(Math.sin(da), Math.cos(da)); n.rot += da * Math.min(1, dt * 10);
+    n.jump = Math.abs(Math.sin(this.t * (speed > 2 ? 14 : 9) + n.ph)) * (speed > 2 ? 0.09 : 0.04);   // bước chân = nhún nhẹ (NPC không có chân riêng)
+    return false;
+  },
+  update(dt) {
+    if (!this.ready) this.build();
+    this.t += dt; let dirty = false;
+    if (!G.act && this.t >= this.nextArrive && this.groups < 5) this.arrive();
+    for (let w = this.walkers.length - 1; w >= 0; w--) {
+      const wk = this.walkers[w], n = npcs[wk.i];
+      if (this.move(n, wk.path[0][0], wk.path[0][1], wk.speed, dt)) wk.path.shift();
+      if (!wk.path.length) {                                           // tới nơi: quay mặt về sân khấu, thành người đứng cố định
+        n.jump = 0; n.arrived = true; n.rot = Math.atan2(-n.x * 0.5, -8 - n.z); addCircle(n.x, n.z, 0.32); this.walkers.splice(w, 1);
+        if (wk.k === 0 && !G.act) this.say(wk.i, this.sayFor(n), 4.2);
+      }
+      placeNpc(wk.i, 0, 0, false); dirty = true;
+    }
+    for (const r of this.runners) {                                    // bé chạy tới điểm ngẫu nhiên ở lối bên rồi đứng nghỉ một lát
+      const n = npcs[r.i];
+      if (r.wait > 0) { r.wait -= dt; if (n.jump) { n.jump = 0; placeNpc(r.i, 0, 0, false); dirty = true; } if (r.wait <= 0) { for (let t = 0; t < 30; t++) { const x = Math.sign(n.x || 1) * (6.4 + Math.random() * 2.6), z = -8 + Math.random() * 18; if (isFree(x, z, 0.4)) { r.tx = x; r.tz = z; break; } } } continue; }
+      if (this.move(n, r.tx, r.tz, LIFE.run, dt)) { r.wait = 1.5 + Math.random() * 3.5; n.jump = 0; }
+      placeNpc(r.i, 0, 0, false); dirty = true;
+    }
+    if (dirty) markNpcDirty();
+    if (!G.act && this.t >= this.nextSay && this.bubbles.filter((b) => b.life > 0).length < 2) {
+      this.nextSay = this.t + LIFE.sayGap[0] + Math.random() * (LIFE.sayGap[1] - LIFE.sayGap[0]);
+      const i = this.speaker(); if (i >= 0) this.say(i, this.sayFor(npcs[i]));
+    }
+    for (const b of this.bubbles) {
+      if (b.life <= 0) continue;
+      b.age += dt; const n = npcs[b.i], hs = n.kind === 'kid' ? 1.22 : 1, fade = G.act ? 0 : Math.min(b.age / 0.25, 1, (b.life - b.age) / 0.4);   // vào hoạt động thì bong bóng tắt hẳn
+      if (G.act && b.age > 0.3) b.age = b.life;
+      if (b.age >= b.life) { b.life = 0; b.spr.visible = false; b.spr.material.opacity = 0; continue; }
+      b.spr.position.set(n.x, (1.43 + 0.3 * hs) * n.scale + (n.jump || 0) + 0.22, n.z); b.spr.material.opacity = Math.max(0, fade);
+    }
+  },
+};
+const pick2 = (a) => a[Math.floor(Math.random() * a.length)];            // chọn không dùng rand() cố định, để bố cục cảnh không bị đổi
+
+/* =====================================================================
    11. MÀN CHÀO, LƯU TẠM, KHỞI ĐỘNG
    ===================================================================== */
 const store = {
@@ -2362,7 +2484,7 @@ requestAnimationFrame(loop);
 G.ready = true; $('go').disabled = false; $('go').textContent = 'Vào tiệc';
 
 // Gỡ lỗi từ console: window.__ddc
-window.__ddc = { G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
+window.__ddc = { npcLife, LIFE, G, player, cam, circles, boxes, npcs, renderer, scene, CFG, trayAct, karaokeAct, bouquetAct, pourAct, toastAct, wishAct, WISH, wishIsClean, ledScreen, party, keys, crowd, audio, ceremony, ceremonyAct, CER, sparks, hearts };
 </script>
 <script>
   // Nếu module (Three.js từ CDN) không tải được: báo lỗi thay vì treo ở "Đang dựng rạp…"
