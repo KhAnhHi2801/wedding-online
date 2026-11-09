@@ -37,9 +37,9 @@ for fname, info in charts.items():
                   'src': 'data:audio/mpeg;base64,' + base64.b64encode(data).decode('ascii'), 'chart': info['chart']})
 # Hiệu ứng âm thanh hoạt động Bắt hoa: khoá → file (index.html gọi audio.playSfx(khoá))
 SFX = {'bouquetWait': 'Chờ để bắt hoa.mp3', 'bouquetCatch': 'Bắt được hoa.mp3', 'bouquetMiss': 'Bắt hụt.mp3', 'cheers': 'Hai ba dzo.mp3', 'applause': 'Tiếng vỗ tay.mp3'}
-# File tuỳ chọn: có thì dùng thay tiếng tổng hợp (đám đông ồn ào, tiếng rót, cụng ly, tiếng loa MC). Không có cũng không sao.
+# File tuỳ chọn: có thì dùng thay tiếng tổng hợp (đám đông ồn ào, tiếng rót, cụng ly, tiếng loa MC, tiếng máy ảnh chụp). Không có cũng không sao.
 OPTIONAL = {'crowd': ['Tiếng đám đông.mp3', 'Tiếng ồn ào trong quán nhậu.mp3'], 'pour': ['Tiếng rót rượu vào ly.mp3'],
-            'clink': ['Cụng ly.mp3'], 'mic': ['Loa kéo.mp3']}
+            'clink': ['Cụng ly.mp3'], 'mic': ['Loa kéo.mp3'], 'shutter': ['Tiếng đèn flash và máy ảnh chụp liên tục.mp3']}
 for key, names in OPTIONAL.items():
     for fname in names:
         if os.path.exists(os.path.join(ROOT, 'songs', fname)): SFX[key] = fname; print('dùng file tuỳ chọn:', key, fname); break

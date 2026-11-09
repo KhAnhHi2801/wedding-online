@@ -72,6 +72,19 @@
   #photoUI { position:absolute; inset:0; display:none; pointer-events:none; z-index:7; }
   #photoFlash { position:absolute; inset:0; background:#fff; opacity:0; }
   #photoCount { position:absolute; left:50%; top:34%; transform:translate(-50%,-50%); font-size:min(34vw,150px); font-weight:900; color:#fff; text-shadow:0 4px 24px rgba(0,0,0,.65); }
+  #photoPick { position:absolute; left:50%; bottom:max(10px,env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(96vw,440px); display:none; pointer-events:auto; text-align:center;
+    padding:8px 8px 10px; border-radius:16px; background:rgba(46,10,32,.82); border:1px solid rgba(255,209,102,.4); color:#fff; }
+  #photoPick .mode { display:flex; gap:6px; margin-bottom:8px; }
+  #photoPick .mode button { flex:1; min-height:40px; border-radius:20px; border:2px solid transparent; background:rgba(255,255,255,.12); color:#fff; font-size:13px; font-weight:700; line-height:1.15; cursor:pointer; touch-action:manipulation; }
+  #photoPick .mode button.on { border-color:#ffd166; background:rgba(255,209,102,.25); }
+  #photoPick .row button:disabled { opacity:.45; }
+  #photoPick .poses { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-bottom:8px; }
+  #photoPick .pose { min-height:52px; padding:3px 0; border-radius:10px; border:2px solid transparent; background:rgba(255,255,255,.12); color:#fff; font-size:11px; font-weight:700; line-height:1.15; cursor:pointer; touch-action:manipulation; }
+  #photoPick .pose b { display:block; font-size:22px; line-height:1.25; }
+  #photoPick .pose.on { border-color:#ffd166; background:rgba(255,209,102,.25); }
+  #photoPick .row { display:flex; gap:8px; justify-content:center; }
+  #photoPick .row button { min-height:44px; padding:0 18px; border-radius:22px; border:0; font-weight:800; cursor:pointer; touch-action:manipulation; background:rgba(255,255,255,.16); color:#fff; }
+  #photoPick .row button.main { background:linear-gradient(180deg,#ffe28a,#ffb703); color:#4a0d1a; }
   #photoCard { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-2.5deg); width:min(78vw,340px); padding:12px 12px 14px; border-radius:6px; background:#fffdf7;
     box-shadow:0 12px 40px rgba(0,0,0,.55); display:none; pointer-events:auto; text-align:center; }
   #photoCard img { display:block; width:100%; max-height:50vh; object-fit:cover; background:#222; }
@@ -315,6 +328,7 @@
   </div>
   <div id="luckyUI"><div class="box"><h2>Bốc thăm may mắn</h2><p>Chọn một bao lì xì nhé!</p><div class="envs"><button class="env" type="button" data-i="0" aria-label="Bao lì xì 1">🧧</button><button class="env" type="button" data-i="1" aria-label="Bao lì xì 2">🧧</button><button class="env" type="button" data-i="2" aria-label="Bao lì xì 3">🧧</button></div><button id="luckyQuit" class="quit" type="button">Để lúc khác</button></div></div>
   <div id="photoUI"><div id="photoFlash"></div><div id="photoCount"></div>
+    <div id="photoPick"><div class="mode" id="photoMode"><button type="button" data-m="solo">🧍 Một mình</button><button type="button" data-m="group:bride">👰 Cạnh cô dâu</button><button type="button" data-m="group:groom">🤵 Cạnh chú rể</button></div><div class="poses" id="photoPoses"></div><div class="row"><button id="photoQuit" type="button">Để lúc khác</button><button id="photoShoot" type="button" class="main">📸 Chụp!</button></div></div>
     <div id="photoCard"><img id="photoImg" alt="Ảnh kỷ niệm"><p id="photoCap"></p><div class="row"><button id="photoAgain" type="button">Chụp lại</button><button id="photoDone" type="button" class="main">Xong</button></div></div></div>
   <div id="cerUI"><div id="cerFade"></div><div id="cerCap"></div><button id="cerSkip" type="button">Bỏ qua</button></div>
   <div id="wishUI">
@@ -1617,7 +1631,7 @@ const trayAct = {
    Riêng `pour`: file chỉ to ở ~4 giây đầu (RMS ≈ -31 dB), phần sau xuống -60 dB, mà một lượt rót chỉ phát đoạn đầu, nên chuẩn hoá theo đoạn đầu. */
 const SFX_LEVEL = {
   norm: { pour: 2.8, applause: 1, cheers: 0.38, bouquetCatch: 0.31, bouquetMiss: 1.5, bouquetWait: 0.28, crowd: 0.26 },
-  maxSec: { crowd: 60, pour: 6 },                                      // file lặp dài chỉ giữ đoạn đầu trong RAM (crowd gốc 430 s = 79 MB, pour gốc 32 s = 12 MB)
+  maxSec: { crowd: 60, pour: 6, shutter: 6 },                                      // file lặp dài chỉ giữ đoạn đầu trong RAM (crowd gốc 430 s = 79 MB, pour gốc 32 s = 12 MB)
   song: { song1: 0.98, song2: 0.63, song3: 0.39 },
   synth: { flush: 0.45, doorOpen: 0.2, doorClose: 0.12 },                                    // tiếng tổng hợp của nhà vệ sinh (biên độ đỉnh trước master)
   duckDb: { karaoke: -9, calm: -10, ceremony: -6, other: -4 },       // đám đông hạ bao nhiêu dB khi có hoạt động
@@ -2463,7 +2477,7 @@ const toastAct = {
     if (idle && now - this.myT0 < this.cheerDur) {   // người chơi cũng giơ ly và nhún nhảy cùng bàn (đè lên dáng đi của khung hình này)
       const r = player.rig; r.armL.rotation.x = r.armR.rotation.x = -0.35; r.armL.rotation.z = -2.7; r.armR.rotation.z = 2.7;   // hai tay giơ cao sang hai bên: nhìn từ sau lưng vẫn thấy
       player.group.position.y = 0.13 * Math.abs(Math.sin((now - this.myT0) * 9));
-    } else if (player.rig) player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;
+    } else if (player.rig && G.act !== photoAct) player.rig.armL.rotation.z = player.rig.armR.rotation.z = 0;   // đang chụp ảnh thì dáng tự đặt tay
     if (now > this.msgUntil) $('toastMsg').style.opacity = 0;
     if (idle && !this.finished && this.visited.size === tablePos.length && !this.cheers.size) this.finish();
   },
@@ -2633,24 +2647,125 @@ const toiletAct = {
 
 /* =====================================================================
    18b2. CHỤP ẢNH KỶ NIỆM
-   Đứng trước phông hoa, đếm 3-2-1, đèn chớp, hiện ảnh polaroid. Ảnh chỉ nằm trong trang, không lưu và không gửi đi đâu.
+   Đứng trước phông hoa, chọn chụp một mình hoặc đứng cạnh cô dâu / chú rể (hai người chạy ra đứng sát nhau, khoác tay), chọn dáng, đếm 3-2-1, đèn chớp, hiện ảnh polaroid (Chụp lại thì chọn dáng khác). Ảnh chỉ nằm trong trang, không lưu và không gửi đi đâu.
    Lần đầu được ít điểm Vui, các lần sau gần như không có.
    ===================================================================== */
-const PHOTO = { first: 20, again: 3, walk: 0.8, count: 0.8, shot: 3.2 };
+const PHOTO = { first: 20, again: 3, walk: 0.8, count: 0.8, n: 3, join: 2.6,
+  slotZ: [-0.4, 0.35], sideZ: { solo: 0, bride: 1.2, groom: -1.25 }, speed: 2.2, arc: 0.9 };   // slotZ: chỗ cố định của [chú rể, cô dâu] ở giữa phông, hai người sát nhau; sideZ: người chụp đứng lệch bao nhiêu (bên cô dâu = phải, bên chú rể = trái); arc: đi vòng ra trước để không xuyên qua cô dâu chú rể
+/* Dáng chụp: apply(r, T, role) đặt tay/thân từ trạng thái trung tính mỗi khung hình (T = giây, để vẫy/nhún theo nhịp).
+   Chế độ nhóm: chỉ người chơi tạo dáng (apply(r, T, side), side = đứng cạnh 'bride' hay 'groom'); cô dâu chú rể luôn đứng yên, tay cô dâu khoác vào tay chú rể.
+   Nhân vật quay mặt về -x nên trục x cục bộ + là hướng +z thế giới (bên phải khung hình): chú rể khoác bằng tay phải (armR), cô dâu bằng tay trái (armL). */
+function linkCouple(r, role) {                      // chú rể co tay đưa ra, tay cô dâu luồn vào; hai người hơi nghiêng về nhau
+  if (role === 'groom') { r.armR.rotation.set(-0.3, 0, 0.2); r.elbowR.rotation.x = -1.0; r.body.rotation.z = -0.04; }
+  else if (role === 'bride') { r.armL.rotation.set(-0.3, 0, -0.2); r.elbowL.rotation.x = -0.9; r.body.rotation.z = 0.04; }
+}
+const P_STAND = { icon: '🧍', name: 'Đứng chụp', apply(r, T) {                    // đứng tự nhiên, hai tay buông nhẹ, dồn trọng tâm sang một chân
+  r.armL.rotation.z = -0.1; r.armR.rotation.z = 0.1; r.elbowL.rotation.z = -0.2; r.elbowR.rotation.z = 0.2; r.body.rotation.z = 0.025 * Math.sin(T * 1.5); r.legR.rotation.x = -0.08; } };
+const P_CHEER = { icon: '🙌', name: 'Hoan hô', apply(r, T) {
+  const s = Math.sin(T * 5); r.body.position.y = Math.abs(s) * 0.05; r.armL.rotation.z = -(2.3 + 0.1 * s); r.armR.rotation.z = 2.3 - 0.1 * s; r.elbowL.rotation.z = -0.5; r.elbowR.rotation.z = 0.5; } };
+const P_WAVE = { icon: '👋', name: 'Vẫy chào', apply(r, T) {                         // tay phải đưa ngang vai, cẳng tay dựng đứng và lắc qua lại
+  r.armR.rotation.z = 1.7; r.elbowR.rotation.z = 1.35 + 0.4 * Math.sin(T * 8); r.armL.rotation.z = -0.1; r.body.rotation.z = 0.03 * Math.sin(T * 2); } };
+const P_HIPS = { icon: '😎', name: 'Chống hông', apply(r, T) {
+  r.armL.rotation.z = -0.6; r.armR.rotation.z = 0.6; r.elbowL.rotation.z = 1.5; r.elbowR.rotation.z = -1.5; r.body.rotation.z = 0.05 * Math.sin(T * 2.5); r.legR.rotation.x = -0.15; } };
+const PHOTO_POSES = {
+  solo: [P_STAND, P_HIPS, P_WAVE,
+    { icon: '🥰', name: 'Dễ thương', apply(r, T) {                                    // hai tay ôm má, nghiêng người nhẹ
+      r.armL.rotation.z = -1.9; r.armR.rotation.z = 1.9; r.elbowL.rotation.z = -1.9; r.elbowR.rotation.z = 1.9; r.body.rotation.z = 0.06 + 0.07 * Math.sin(T * 3); } },
+    P_CHEER,
+    { icon: '🤸', name: 'Nhảy cẫng', apply(r, T) {
+      const j = Math.abs(Math.sin(T * 5)); r.body.position.y = j * 0.3; r.armL.rotation.z = -(2.5 + 0.1 * j); r.armR.rotation.z = 2.5 + 0.1 * j; r.legL.rotation.x = -0.6 * j; r.legR.rotation.x = 0.6 * j; } }],
+  group: [                                          // side 'bride': cô dâu chú rể ở bên -z của người chơi (người chơi ở bên phải khung hình); 'groom': ngược lại
+    { icon: '🧍', name: 'Đứng chụp', apply(r, T) { r.armL.rotation.z = -0.1; r.armR.rotation.z = 0.1; r.elbowL.rotation.z = -0.2; r.elbowR.rotation.z = 0.2; r.body.rotation.z = 0.025 * Math.sin(T * 1.5); r.legR.rotation.x = -0.08; } },
+    { icon: '🤝', name: 'Choàng vai', apply(r, T, side) {                              // choàng tay qua vai người đứng cạnh
+      r.armL.rotation.z = side === 'bride' ? -1.35 : -0.1; r.armR.rotation.z = side === 'bride' ? 0.1 : 1.35; r.elbowL.rotation.z = -0.2; r.elbowR.rotation.z = 0.2; } },
+    P_CHEER,
+    { icon: '👋', name: 'Vẫy chào', apply(r, T, side) {                                // vẫy bằng tay phía ngoài, tay phía cô dâu chú rể buông
+      const sg = side === 'bride' ? 1 : -1, [w, we, h] = sg > 0 ? [r.armR, r.elbowR, r.armL] : [r.armL, r.elbowL, r.armR];
+      w.rotation.z = sg * 1.7; we.rotation.z = sg * (1.35 + 0.4 * Math.sin(T * 8)); h.rotation.z = -sg * 0.1; } },
+    P_HIPS,
+    { icon: '💞', name: 'Tựa đầu', apply(r, T, side) {                                 // nghiêng đầu về phía người đứng cạnh
+      r.armL.rotation.z = -0.12; r.armR.rotation.z = 0.12; r.elbowL.rotation.z = -0.2; r.elbowR.rotation.z = 0.2; r.body.rotation.z = (side === 'bride' ? 0.11 : -0.11) + 0.015 * Math.sin(T * 2); } }],
+};
+const resetRig = (r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); r.body.rotation.set(0, 0, 0); };
+const angLerp = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
 const photoAct = {
-  t: 0, state: 'walk', want: false, p0: { x: 0, z: 0, rot: 0 }, dRot: 0, taken: 0, visits: 0, last: 0, shotAt: 0,
+  t: 0, cs: 0, state: 'walk', mode: 'solo', side: 'bride', pz: 0, pa: 0, pb: 0, pt: 1, pose: 0, cm: 0, rest: [], after: null, busy: false,
+  want: false, p0: { x: 0, z: 0, rot: 0 }, dRot: 0, taken: 0, visits: 0, last: 0, shotAt: 0,
   enter() {
     this.p0 = { x: player.x, z: player.z, rot: player.rot }; const target = -Math.PI / 2;               // quay mặt ra phía máy quay (-x)
     this.dRot = Math.atan2(Math.sin(target - player.rot), Math.cos(target - player.rot));
-    cam.free = { pos: new THREE.Vector3(PH.cam.x, PH.cam.y, PH.z), look: new THREE.Vector3(PH.stand.x, 1.25, PH.z) };
-    $('photoUI').style.display = 'block'; $('photoCard').style.display = 'none'; $('photoCount').textContent = '';
-    this.t = 0; this.state = 'walk'; this.want = false; this.last = 0;
+    cam.free = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
+    this.rest = [0, 1].map((i) => ({ x: couple[i].position.x, y: couple[i].position.y, z: couple[i].position.z, rot: couple[i].rotation.y }));   // chỗ cũ trên sân khấu để trả về
+    this.cm = 0; this.mode = 'solo'; this.pz = this.pa = this.pb = 0; this.pt = 1; this.after = null; this.frame();
+    $('photoUI').style.display = 'block'; $('photoCard').style.display = 'none'; $('photoCount').textContent = ''; $('photoPick').style.display = 'none';
+    this.t = 0; this.state = 'walk'; this.want = false; this.last = 0; this.renderPoses();
   },
   exit() {
-    $('photoUI').style.display = 'none'; $('photoCard').style.display = 'none'; $('photoFlash').style.opacity = 0; cam.free = null; this.want = false;
-    const r = player.rig; poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0;
+    $('photoUI').style.display = 'none'; $('photoCard').style.display = 'none'; $('photoPick').style.display = 'none'; $('photoFlash').style.opacity = 0; cam.free = null; this.want = false;
+    resetRig(player.rig); this.placeCouple(0); this.restoreView();                                                          // thoát đột ngột cũng trả cô dâu chú rể về sân khấu
   },
-  retake() { this.t = PHOTO.walk; this.state = 'count'; this.last = 0; $('photoCard').style.display = 'none'; },
+  frame() {                                         // màn dọc: lùi máy ra và đẩy nhân vật lên nửa trên để thấy trọn dáng khi bảng chọn che phía dưới
+    const portrait = camera.aspect < 1, f = cam.free; if (!f) return;
+    const shooting = this.state === 'count' || this.state === 'shot' || this.state === 'review';   // bảng chọn đã ẩn: vào gần, nhân vật nằm giữa ảnh
+    const e = ease(this.cm), D = (portrait ? (shooting ? 3.0 : 4.4) : PH.stand.x - PH.cam.x) + (portrait && shooting ? 1.2 : 0.9) * e;   // đứng ba người thì lùi thêm cho đủ khung
+    const zc = PH.z + 0.33 * this.pz;
+    f.pos.set(PH.stand.x - D, portrait ? (shooting ? 1.3 : 1.4) : PH.cam.y, zc); f.look.set(PH.stand.x, portrait ? (shooting ? 0.95 : 0.35) : 1.25, zc);
+  },
+  clearView(dt) {                                   // NPC đứng/chạy giữa máy ảnh và nhóm chụp thì thu nhỏ dần cho khỏi chắn khung hình (n.vis), ra khỏi vùng thì lớn lại
+    const f = cam.free; if (!f) return; const camX = f.pos.x, far = PH.stand.x - camX - 0.5; let dirty = false;
+    npcs.forEach((n, i) => {
+      if (n.reserve) return;
+      const dx = n.x - camX, inView = dx > -1.2 && dx < far && Math.abs(n.z - f.pos.z) < 0.95 * Math.max(dx, 0) + 0.9, cur = n.vis === undefined ? 1 : n.vis;
+      if (inView && cur > 0 && n.pvis === undefined) n.pvis = cur;
+      if (n.pvis === undefined) return;
+      const goal = inView ? 0 : n.pvis, st = dt * 4;
+      if (cur === goal) { if (!inView) delete n.pvis; return; }
+      n.vis = Math.abs(goal - cur) <= st ? goal : cur + Math.sign(goal - cur) * st; placeNpc(i, 0, 0, false); dirty = true;
+    });
+    if (dirty) markNpcDirty();
+  },
+  restoreView() {                                   // thoát hoạt động: trả mọi NPC đã thu nhỏ về cỡ cũ ngay
+    let dirty = false;
+    npcs.forEach((n, i) => { if (n.pvis !== undefined) { n.vis = n.pvis; delete n.pvis; placeNpc(i, 0, 0, false); dirty = true; } });
+    if (dirty) markNpcDirty();
+  },
+  face(x, z) { const f = cam.free; return f ? Math.atan2(f.pos.x - x, f.pos.z - z) : -Math.PI / 2; },   // quay mặt thẳng vào máy ảnh (đứng song song thì người ở hai bên nhìn như quay đi chỗ khác)
+  slot(i) { const z = PH.stand.z + PHOTO.slotZ[i]; return { x: PH.stand.x, y: 0, z, rot: this.face(PH.stand.x, z) }; },
+  placeCouple(k, dir = 1) {                         // k: 0 = đang ở sân khấu, 1 = đã vào vị trí chụp; trả về true nếu đang đi giữa chừng
+    const moving = k > 0 && k < 1, e = ease(k);
+    for (let i = 0; i < 2; i++) {
+      const R = this.rest[i], S = this.slot(i), g = couple[i], r = coupleRigs[i]; if (!R) continue;
+      g.position.set(lerp(R.x, S.x, e), lerp(R.y, S.y, e), lerp(R.z, S.z, e));
+      if (moving) {                                 // quay theo hướng đi, gần đến nơi thì xoay về hướng cuối
+        const heading = Math.atan2((S.x - R.x) * dir, (S.z - R.z) * dir), face = dir > 0 ? S.rot : R.rot, from = dir > 0 ? R.rot : S.rot, q = dir > 0 ? k : 1 - k;
+        g.rotation.y = angLerp(angLerp(from, heading, clamp(q / 0.1, 0, 1)), face, clamp((q - 0.6) / 0.35, 0, 1));
+        g.visible = true; poseWalker(r, this.t * 9 + i, 1, false);
+      } else g.rotation.y = k >= 1 ? S.rot : R.rot;
+      if (k <= 0) resetRig(r);
+    }
+    return moving;
+  },
+  renderPoses() {
+    $('photoPoses').innerHTML = PHOTO_POSES[this.mode].map((p, i) => `<button type="button" class="pose" data-i="${i}"><b>${p.icon}</b>${p.name}</button>`).join('');
+    this.markMode(); this.setPose(this.pose);
+  },
+  markMode() { const cur = this.mode === 'solo' ? 'solo' : 'group:' + this.side; document.querySelectorAll('#photoMode button').forEach((b) => b.classList.toggle('on', b.dataset.m === cur)); },
+  setMode(v) {                                      // v: 'solo' | 'group:bride' | 'group:groom'; cô dâu chú rể đứng yên, người chụp đi sang bên đã chọn
+    if (this.state !== 'pick') return; const [m, sd] = v.split(':');
+    if (m === 'solo') { if (this.mode === 'solo') return; this.mode = 'solo'; }
+    else { if (this.mode === 'group' && this.side === sd) return; this.mode = 'group'; this.side = sd; }
+    this.pose = 0; this.renderPoses(); buzz(8);
+  },
+
+  setPose(i) { this.pose = i; document.querySelectorAll('#photoPoses .pose').forEach((b, k) => b.classList.toggle('on', k === i)); },
+  pick() { this.state = 'pick'; $('photoCard').style.display = 'none'; $('photoPick').style.display = 'block'; },
+  shoot() { if (this.state !== 'pick' || this.busy) return; $('photoPick').style.display = 'none'; this.state = 'count'; this.cs = this.t; this.last = 0; },
+  leave(fn) {                                       // cô dâu chú rể về lại sân khấu rồi mới thoát hoạt động
+    $('photoPick').style.display = 'none'; $('photoCard').style.display = 'none'; this.mode = 'solo'; this.after = fn;
+    if (this.cm <= 0) { this.after = null; fn(); } else this.state = 'leave';
+  },
+  quit() { if (G.act === this && this.state === 'pick') this.leave(() => { exitAct(); snapCamera(); showHint('Lúc nào rảnh bạn quay lại chụp ảnh nhé ♥', 3500); }); },
+  retake() { this.pick(); },
   grab() {                                          // gọi từ vòng lặp ngay sau renderer.render
     this.want = false; let url = '';
     try { url = canvas.toDataURL('image/jpeg', 0.88); } catch { /* trình duyệt chặn đọc ảnh */ }
@@ -2658,31 +2773,53 @@ const photoAct = {
     $('photoCard').style.display = url ? 'block' : 'none'; if (!url) this.finish();
   },
   update(dt) {
-    const T = (this.t += dt), r = player.rig, k = (a, b) => clamp((T - a) / (b - a), 0, 1), S = PH.stand;
+    const T = (this.t += dt), r = player.rig, S = PH.stand; this.frame(); this.clearView(dt);
     let x = S.x, z = S.z, rot = -Math.PI / 2, walk = false;
-    if (this.state === 'walk') { const e = ease(k(0, PHOTO.walk)); x = lerp(this.p0.x, S.x, e); z = lerp(this.p0.z, S.z, e); rot = this.p0.rot + this.dRot * e; walk = e < 1; if (T >= PHOTO.walk) this.state = 'count'; }
+    if (this.state === 'walk') { const e = ease(clamp(T / PHOTO.walk, 0, 1)); x = lerp(this.p0.x, S.x, e); z = lerp(this.p0.z, S.z, e); rot = this.p0.rot + this.dRot * e; walk = e < 1; if (T >= PHOTO.walk) this.pick(); }
+    else {                                                                                              // người chụp đi sang bên đã chọn: vòng ra trước nhóm, quay theo hướng đi rồi quay lại nhìn máy
+      const tgt = this.mode === 'solo' ? 0 : PHOTO.sideZ[this.side];
+      if (tgt !== this.pb) { this.pa = this.pz; this.pb = tgt; this.pt = 0; }
+      if (this.pt < 1) {
+        this.pt = Math.min(1, this.pt + dt * PHOTO.speed / Math.max(0.1, Math.abs(this.pb - this.pa))); this.pz = lerp(this.pa, this.pb, ease(this.pt));
+        x = S.x - PHOTO.arc * Math.sin(Math.PI * this.pt); walk = true; rot = angLerp(this.face(S.x, S.z + this.pz), this.pb > this.pa ? 0 : Math.PI, clamp(Math.min(this.pt, 1 - this.pt) / 0.2, 0, 1));
+      }
+      z = S.z + this.pz; if (this.pt >= 1) rot = this.face(x, z);
+    }
     player.x = x; player.z = z; player.rot = rot; player.group.position.set(x, 0, z); player.group.rotation.y = rot;
     poseWalker(r, T * 9, walk ? 1 : 0, false);
-    if (this.state === 'count' || this.state === 'shot' || this.state === 'review') {                  // tạo dáng: hai tay giơ cao vẫy nhẹ
-      const sw = Math.sin(T * 5) * 0.12; r.armL.rotation.z = -(2.45 + sw); r.armR.rotation.z = 2.45 - sw;
-    }
+    const want = this.mode === 'group' ? 1 : 0, prev = this.cm, step = dt / PHOTO.join, d = want - this.cm;     // cô dâu chú rể đi vào / đi ra theo chế độ đang chọn
+    this.cm = this.state === 'walk' ? 0 : Math.abs(d) <= step ? want : this.cm + Math.sign(d) * step;
+    if (this.cm > 0 || prev > 0) this.placeCouple(this.cm, want ? 1 : -1);
+    const moving = (this.cm > 0 && this.cm < 1) || this.pt < 1;
+    if (moving !== this.busy) { this.busy = moving; $('photoShoot').disabled = moving; }
+    if (this.state === 'leave' && this.cm <= 0) { const f = this.after; this.after = null; if (f) f(); return; }
+    if (this.state !== 'walk' && this.state !== 'leave' && this.pt >= 1) {                                              // dáng đang chọn chạy ngay trên nhân vật, cả lúc đếm ngược
+      resetRig(r); r.body.position.y = 0; poseWalker(r, 0, 0, false); const pose = PHOTO_POSES[this.mode][this.pose];
+      pose.apply(r, T, this.side);
+    } else if (this.state === 'leave') resetRig(r);
+    if (this.cm >= 1) coupleRigs.forEach((cr, i) => { resetRig(cr); linkCouple(cr, i === 0 ? 'groom' : 'bride'); });   // cô dâu chú rể chỉ khoác tay đứng yên
     if (this.state === 'count') {
-      const n = 3 - Math.floor((T - PHOTO.walk) / PHOTO.count);
-      if (n !== this.last && n > 0) { this.last = n; $('photoCount').textContent = String(n); audio.tone(660 + (3 - n) * 110, 0.12, 'sine', 0.06); buzz(12); }
-      if (T >= PHOTO.shot) {
+      const el = T - this.cs, n = PHOTO.n - Math.floor(el / PHOTO.count);
+      if (n !== this.last && n > 0) { this.last = n; $('photoCount').textContent = String(n); audio.tone(660 + (PHOTO.n - n) * 110, 0.12, 'sine', 0.06); buzz(12); }
+      if (el >= PHOTO.n * PHOTO.count) {
         this.state = 'shot'; $('photoCount').textContent = ''; this.want = true; this.taken++;
         const f = $('photoFlash'); f.style.transition = 'none'; f.style.opacity = 0.9; void f.offsetWidth; f.style.transition = 'opacity .6s'; f.style.opacity = 0;
-        audio.noise(0.08, 0.3, 3000); audio.tone(1800, 0.04, 'square', 0.05); buzz(40);
-        this.shotAt = T;
+        if (window.SFX_DATA && window.SFX_DATA.shutter) { audio.playSfx('shutter', 0.9); setTimeout(() => audio.stopSfx('shutter', 0.3), 1500); }   // file dài ~67 s: chỉ lấy đoạn đầu đủ một loạt chớp
+        else { audio.noise(0.08, 0.3, 3000); audio.tone(1800, 0.04, 'square', 0.05); }
+        buzz(40); this.shotAt = T;
       }
     } else if (this.state === 'shot' && T > this.shotAt + 0.4) this.state = 'review';
   },
   finish() {
     const pts = this.taken === 0 ? 0 : (this.visits++ === 0 ? PHOTO.first : PHOTO.again); if (pts) party.add(pts);
-    this.taken = 0; exitAct(); snapCamera();
-    if (pts) showHint('Ảnh đẹp quá! (+' + pts + ' Vui)', 4500);
+    this.taken = 0;
+    this.leave(() => { exitAct(); snapCamera(); if (pts) showHint('Ảnh đẹp quá! (+' + pts + ' Vui)', 4500); });
   },
 };
+$('photoPoses').addEventListener('click', (e) => { const b = e.target.closest('.pose'); if (b && photoAct.state === 'pick') { b.blur(); photoAct.setPose(+b.dataset.i); buzz(8); } });
+$('photoMode').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { b.blur(); photoAct.setMode(b.dataset.m); } });
+$('photoShoot').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.shoot(); });
+$('photoQuit').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.quit(); });
 $('photoAgain').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.retake(); });
 $('photoDone').addEventListener('click', (e) => { e.currentTarget.blur(); photoAct.finish(); });
 
