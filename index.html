@@ -3163,6 +3163,16 @@ function updateGoal() {
   setGoal(ARROWS[((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8] + ' ' + best.label + ' · ' + Math.round(bd) + ' m' + tail);
 }
 setInterval(updateGoal, 300);
+/* Gửi ngầm tên + trang phục lên Google Sheet (cùng Apps Script với thiệp, tab "Players").
+   Không await, không chặn game: mất mạng/lỗi thì bỏ qua, người chơi không thấy gì. text/plain để khỏi preflight (Apps Script không có OPTIONS). */
+const PLAYER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwIS6VMMIRUgBfuUnEQ_u6nl7rRMqUC9fjEykHjR-A83CeaJIy76M-x6-Li6Zw4k4yI/exec';
+function reportPlayer() {
+  try {
+    let token = ''; try { token = localStorage.getItem('wedding-token') || ''; if (!token) { token = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10)); localStorage.setItem('wedding-token', token); } } catch { token = token || Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+    const body = JSON.stringify({ kind: 'player', name: G.name, outfit: OUTFITS[G.outfit].name, guest: invitedName, website: '', token });
+    fetch(PLAYER_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, keepalive: true }).catch(() => {});
+  } catch { /* không được làm hỏng việc vào tiệc */ }
+}
 function enterParty() {
   if (!G.ready || G.started) return;
   G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
@@ -3172,6 +3182,7 @@ function enterParty() {
   buildPlayer(OUTFITS[G.outfit], G.name);
   cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
   G.started = true;
+  setTimeout(reportPlayer, 1500);                   // sau khi vào tiệc xong, tránh tranh mạng với việc nạp âm thanh đầu tiên
   $('splash').classList.add('hide'); setTimeout(() => { $('splash').style.display = 'none'; }, 600);
   $('hud').style.display = 'block'; if (isTouch) joy.style.display = 'block';
   if (showFps) fpsEl.style.display = 'block';
