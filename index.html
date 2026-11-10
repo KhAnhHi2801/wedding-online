@@ -1658,7 +1658,8 @@ const audio = {
     if (this.ctx) { this.resume(); return; }
     try {
       const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
-      this.ctx = new C(); this.master = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.6;
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* bản Safari cũ không có */ }   // iOS: mặc định Web Audio bị công tắc im lặng chặn; 'playback' cho phát như nhạc/phương tiện
+      this.ctx = new C(); this.master =this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.6;
       const lim = SFX_LEVEL.limiter; this.limiter = this.ctx.createDynamicsCompressor();
       for (const k of Object.keys(lim)) this.limiter[k].value = lim[k];
       this.master.connect(this.limiter); this.limiter.connect(this.ctx.destination);
