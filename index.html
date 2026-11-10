@@ -1672,9 +1672,10 @@ const audio = {
       for (let i = 0; i < L; i++) pd[i] = raw[i];
       for (let i = 0; i < X; i++) { const w = i / X; pd[i] = raw[i] * w + raw[L + i] * (1 - w); }
       this.pourBuf = pb;
+      for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, () => this.resume(), { passive: true });   // trình duyệt treo lại âm thanh thì cú chạm kế tiếp mở lại
     } catch { this.ctx = null; }
   },
-  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  resume() { if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); },   // gồm cả 'interrupted' của Safari (cuộc gọi, khoá màn hình)
   setMuted(m) { this.muted = m; if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.6, this.ctx.currentTime, 0.02); },
   tone(freq, dur, type, vol, when = 0) {
     if (!this.ctx) return;
@@ -1757,7 +1758,7 @@ const audio = {
   },
   /* Hiệu ứng mp3 (window.SFX_DATA): giải mã một lần rồi lưu lại. Gọi playSfx khi chưa giải mã xong vẫn đúng: tiếng vào muộn vài chục ms,
      còn nếu stopSfx đã được gọi trong lúc chờ thì không phát nữa. */
-  sfxBuf: {}, sfxLive: {},
+  sfxBuf: {}, sfxLive: {}, sfxFail: {},
   sfxTrimEnd: { cheers: 1.5 },                      // giây cắt bỏ ở cuối mỗi file khi phát (không sửa file gốc)
   trimSfx(key, b) {                                 // giữ RAM thấp: cắt còn đoạn đầu, trộn chéo đuôi vào đầu để vòng lặp nối liền, không bị tạch
     const sec = SFX_LEVEL.maxSec[key]; if (!sec || b.duration <= sec + 2) return b;
@@ -1771,6 +1772,7 @@ const audio = {
   loadSfx(key) {
     const src = (window.SFX_DATA || {})[key];
     if (!this.ctx || !src) return Promise.resolve(null);
+    if (!this.sfxBuf[key] && this.sfxFail[key] && performance.now() - this.sfxFail[key] < 4000) return Promise.resolve(null);   // vừa lỗi: chờ chút rồi mới thử lại, tránh giải mã dồn dập
     if (!this.sfxBuf[key]) {
       const bin = atob(src.slice(src.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -1780,15 +1782,19 @@ const audio = {
         b.lead = Math.max(0, f / b.sampleRate - 0.02);          // đoạn im lặng đầu file: bỏ qua để tiếng vào ngay
         b.len = Math.max(0.3, b.duration - b.lead - (this.sfxTrimEnd[key] || 0));   // độ dài thực sự được phát
         return b;
-      }).catch(() => null);
+      }).catch((err) => { console.warn('[audio] giải mã lỗi:', key, err && err.name, err && err.message); return null; }).then((b) => {
+        if (!b) { delete this.sfxBuf[key]; this.sfxFail[key] = performance.now(); }   // không lưu thất bại: lần gọi sau được thử lại
+        return b;
+      });
     }
     return this.sfxBuf[key];
   },
   async playSfx(key, vol = 1, loop = false) {
     this.stopSfx(key, 0); const token = {}; this.sfxLive[key] = token;
     const buf = await this.loadSfx(key);
-    if (!buf || this.sfxLive[key] !== token) return false;
-    const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
+    if (!buf) { if (this.sfxLive[key] === token) delete this.sfxLive[key]; return false; }   // bỏ token hỏng để nơi gọi (vd. đám đông) thử lại được
+    if (this.sfxLive[key] !== token) return false;
+    const s =this.ctx.createBufferSource(), g = this.ctx.createGain();
     g.gain.value = vol * (SFX_LEVEL.norm[key] ?? 1); s.buffer = buf; s.loop = loop; s.connect(g); g.connect(this.master);
     if (loop) s.start(0, buf.lead || 0);
     else {                                          // phát đoạn [lead, lead+len], mờ 80 ms ở cuối để không bị tạch khi cắt
@@ -3330,7 +3336,7 @@ function enterParty() {
   G.name = ($('nameIn').value.trim() || 'Khách quý').slice(0, 16);
   store.set('name', $('nameIn').value.trim()); store.set('outfit', G.outfit);
   audio.init(); ambience.start();                   // cú chạm này mở khoá âm thanh
-  Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k).then((b) => { if (!b && !enterParty.warned) { enterParty.warned = true; showHint('Một vài âm thanh chưa nạp được, bạn vẫn chơi bình thường nhé', 5000); } }), 400 + i * 600));   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
+  Object.keys(window.SFX_DATA || {}).forEach((k, i) => setTimeout(() => audio.loadSfx(k).then((b) => b || new Promise((r) => setTimeout(r, 4500)).then(() => audio.loadSfx(k))).then((b) => { if (!b && !enterParty.warned) { enterParty.warned = true; showHint('Một vài âm thanh chưa nạp được, bạn vẫn chơi bình thường nhé', 5000); } }), 400 + i * 600));   // lỗi thì thử lại một lần rồi mới báo   // giải mã sẵn từng file khi đang đi dạo, điện thoại chậm cũng không phải chờ lúc vào hoạt động
   buildPlayer(OUTFITS[G.outfit], G.name);
   cam.yaw = 0; cam.pitch = CFG.camPitchDefault; camera.position.set(player.x, 4, player.z + 7);
   G.started = true;
