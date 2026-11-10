@@ -371,6 +371,7 @@
 <script type="module" id="game">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 /* =====================================================================
    1. CẤU HÌNH & DỮ LIỆU
@@ -1069,8 +1070,21 @@ function buildNPCs() {
   const eyes = mk(new THREE.SphereGeometry(0.04, 6, 5), N * 2, false);
   const mouth = mk(new THREE.SphereGeometry(0.05, 6, 4).scale(1.5, 0.45, 0.5), N, false);
   const arms = mk(new THREE.CapsuleGeometry(0.065, 0.28, 3, 6), N * 2);
-  const pants = mk(new THREE.CylinderGeometry(0.18, 0.2, 0.5, 8), standing);
-  const thighs = mk(new THREE.BoxGeometry(0.36, 0.16, 0.46), seated);
+  // Chân người đứng: hai ống chân thon dần xuống cổ chân + hai bàn chân, gộp một geometry (gốc ở giữa, sàn ở y = -0.25); một màu theo quần
+  const legsStanding = mergeGeometries([-0.095, 0.095].flatMap((x) => [
+    new THREE.CylinderGeometry(0.1, 0.065, 0.45, 7, 1, true).translate(x, 0, 0),
+    new THREE.BoxGeometry(0.12, 0.06, 0.2).translate(x, -0.22, 0.04),
+  ]));
+  const pants = mk(legsStanding, standing);
+  // Chân người ngồi: hai đùi + hai cẳng chân thả xuống đất + hai bàn chân, gộp một geometry (gốc ở tâm đùi, sàn ở y = -0.52). Một màu theo quần.
+  const legsSeated = mergeGeometries([
+    new THREE.BoxGeometry(0.36, 0.15, 0.46),                                         // hai đùi liền một khối (như cũ) để rẻ tam giác
+    ...[-0.1, 0.1].flatMap((x) => [
+      new THREE.CylinderGeometry(0.065, 0.055, 0.5, 6, 1, true).translate(x, -0.27, 0.2),   // cẳng chân hở hai đầu: nắp bị đùi/bàn chân che
+      new THREE.BoxGeometry(0.13, 0.07, 0.2).translate(x, -0.485, 0.26),
+    ]),
+  ]);
+  const thighs = mk(legsSeated, seated);
   const cnt = (k) => Math.max(1, npcs.filter((n) => n[k]).length);          // InstancedMesh phụ: chỉ có instance cho người dùng chi tiết đó
   const skirt = mk(new THREE.CylinderGeometry(0.2, 0.34, 0.5, 10), cnt('skirt'));
   const hairBack = mk(new THREE.SphereGeometry(0.3, 8, 6).scale(1.08, 1.45, 0.62), cnt('longHair'), false);
@@ -1099,6 +1113,13 @@ function poseWalker(r, phase, s, hold) {
   r.legL.rotation.x = sw; r.legR.rotation.x = -sw;
   if (hold) { r.armL.rotation.x = r.armR.rotation.x = -1.45; } else { r.armL.rotation.x = -sw * 0.8; r.armR.rotation.x = sw * 0.8; }
   r.body.position.y = Math.abs(Math.sin(phase)) * 0.07 * s;
+  // Dáng đi tự nhiên hơn: khuỷu gập khi tay vung ra trước, thân xoắn ngược chiều chân.
+  // Chỉ ghi khi đang đi (hoặc vừa dừng đi) để không đè các pose tĩnh đã đặt khuỷu/thân trước đó.
+  if (!hold && s > 0) {
+    const sn = Math.sin(phase);
+    r.elbowL.rotation.x = -s * (0.12 + 0.5 * Math.max(0, sn)); r.elbowR.rotation.x = -s * (0.12 + 0.5 * Math.max(0, -sn));
+    r.body.rotation.y = 0.07 * sn * s; r.walking = true;
+  } else if (r.walking) { r.elbowL.rotation.x = r.elbowR.rotation.x = 0; r.body.rotation.y = 0; r.walking = false; }
 }
 /* Chi tiết nhận diện từng bộ đồ. Toàn bộ chi tiết của một nhân vật gộp thành MỘT mesh dùng màu theo đỉnh (không đổ bóng) để tốn đúng 1 draw call.
    Gắn vào body nên các tư thế tay chân của hoạt động không bị ảnh hưởng. Toạ độ phần đầu đã cộng sẵn 0.32 (headG nằm ở y=0.32 trong body). */
@@ -1106,6 +1127,7 @@ function merge(parts) {                              // parts: [[geometry, x, y,
   return mergeGeometries(parts.map(([g, x, y, z, rx = 0, ry = 0, rz = 0]) => { g.rotateX(rx); g.rotateY(ry); g.rotateZ(rz); return g.translate(x, y, z); }));
 }
 const VC = new THREE.MeshLambertMaterial({ vertexColors: true });
+const VC2 = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });   // cho vải mỏng một lớp (vạt áo dài) nhìn thấy cả hai mặt
 function mergeC(parts) {                             // parts: [[geometry, color, x, y, z, rx, ry, rz], ...] → geometry có màu theo đỉnh
   return mergeGeometries(parts.map(([g0, col, x, y, z, rx = 0, ry = 0, rz = 0]) => {
     const g = g0.index ? g0.toNonIndexed() : g0;       // Icosahedron không có index, Box/Cylinder có: mergeGeometries đòi đồng nhất
@@ -1119,81 +1141,233 @@ const dBox = (w, h, d) => new THREE.BoxGeometry(w, h, d), dCyl = (a, b, h, n) =>
 const dCap = (r, l) => new THREE.CapsuleGeometry(r, l, 3, 6), dTorus = (r, t, n, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, 6, n, arc);
 const suitParts = (o) => [
   [dBox(0.2, 0.3, 0.04), o.top, -0.12, 0.42, -0.14, 0.08], [dBox(0.2, 0.3, 0.04), o.top, 0.12, 0.42, -0.14, 0.08],      // đuôi áo vest
-  [dBox(0.07, 0.05, 0.02), 0xffffff, 0.15, 0.88, 0.17],                                                                // khăn túi ngực
+  [dBox(0.07, 0.05, 0.02), 0xffffff, 0.15, 0.88, 0.15],                                                                // khăn túi ngực
   [dTorus(0.11, 0.025, 12).rotateX(Math.PI / 2), 0xf4f4f4, 0, 1.02, 0],                                                // cổ áo sơ mi trắng, thấy rõ từ phía sau
 ];
+/* Đuôi ngựa: ống liền chạy theo đường cong pts = [[x, y, z]] (toạ độ theo thân; tâm đầu ở y ≈ 1.45) từ chỗ buộc tới chóp, phình ở giữa rồi thon dần,
+   kèm nơ buộc tóc trắng ở đầu đường cong. Trả về danh sách phần cho mergeC. */
+function ponytailParts(pts) {
+  const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), SEG = 14, RAD = 7;
+  const tube = new THREE.TubeGeometry(curve, SEG, 0.1, RAD, false), P = tube.attributes.position, c = new THREE.Vector3(), v = new THREE.Vector3();
+  for (let i = 0; i < P.count; i++) {                                              // mỗi vòng có RAD+1 đỉnh; co/giãn bán kính theo vị trí dọc đuôi
+    const t = Math.floor(i / (RAD + 1)) / SEG, f = t < 0.35 ? 0.8 + 0.35 * (t / 0.35) : 1.15 - 0.7 * ((t - 0.35) / 0.65);
+    curve.getPointAt(t, c); v.fromBufferAttribute(P, i).sub(c).multiplyScalar(f).add(c); P.setXYZ(i, v.x, v.y, v.z);
+  }
+  tube.computeVertexNormals();
+  const [tx, ty, tz] = pts[0], tip = pts[pts.length - 1], wing = () => new THREE.SphereGeometry(0.055, 6, 4).scale(1.6, 0.7, 0.7);
+  return [[tube, 0x222226, 0, 0, 0], [new THREE.SphereGeometry(0.045, 6, 4), 0x222226, ...tip],                                           // đuôi + chóp
+    [dIco(0.045), 0xffffff, tx, ty + 0.01, tz - 0.04], [wing(), 0xffffff, tx - 0.09, ty + 0.01, tz - 0.04, 0, 0, 0.4], [wing(), 0xffffff, tx + 0.09, ty + 0.01, tz - 0.04, 0, 0, -0.4]];   // nơ
+}
 const DECO = {
-  aodaiRed: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffd166, 0, 0.78, -0.24, Math.PI / 2], [dIco(0.07), 0xffd166, 0.19, 1.84, -0.12]],      // hoa văn vàng sau lưng + hoa cài tóc
-  aodaiBlue: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffffff, 0, 0.78, -0.24, Math.PI / 2], [dCap(0.06, 0.48), 0x1b1b1b, 0, 1.2, -0.44, -0.1]],   // hoa sen trắng + tóc đuôi ngựa
+  aodaiRed: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffd166, 0, 0.66, -0.222, Math.PI / 2], [dIco(0.07), 0xffd166, 0.19, 1.84, -0.12]],      // hoa văn vàng trên tà sau + hoa cài tóc
+  aodaiBlue: () => [[dCyl(0.1, 0.1, 0.012, 14), 0xffffff, 0, 0.66, -0.222, Math.PI / 2],                                                     // hoa sen trắng trên tà sau
+    ...ponytailParts([[0, 1.55, -0.35], [0, 1.5, -0.48], [0, 1.34, -0.57], [0, 1.12, -0.58], [0, 0.94, -0.53], [0, 0.78, -0.48]])],            // đuôi ngựa buộc thấp, buông dài xuống lưng
   suit: (o) => suitParts(o),
-  groom: (o) => [...suitParts(o), [dIco(0.05), 0xfff4e0, -0.15, 0.9, 0.18],                                            // hoa hồng cài ngực
-    [dBox(0.09, 0.07, 0.03), 0xf08fb0, -0.06, 1.0, 0.165, 0, 0, 0.25], [dBox(0.09, 0.07, 0.03), 0xf08fb0, 0.06, 1.0, 0.165, 0, 0, -0.25]],   // nơ cổ hồng
-  shirt: () => [-0.13, 0.13].flatMap((x) => [[dBox(0.035, 0.5, 0.012), 0x3b2a1e, x, 0.75, 0.157], [dBox(0.035, 0.5, 0.012), 0x3b2a1e, x, 0.75, -0.157]]),   // dây đeo quần
-  dressPink: () => [[dCyl(0.4, 0.54, 0.18, 14), 0xff9ac8, 0, 0.33, 0], [dTorus(0.41, 0.03, 16, Math.PI), 0xff4f9a, 0, 1.47, -0.02, -0.25]],   // tầng váy xoè + băng đô
-  dressYellow: () => [[dCyl(0.4, 0.52, 0.14, 14), 0xffe08a, 0, 0.32, 0], [dCap(0.07, 0.3), 0x1b1b1b, 0, 1.9, -0.36, -0.9], [dIco(0.07), 0xffffff, 0, 1.82, -0.3]],   // tầng váy + đuôi ngựa cao + nơ
-  bride: () => [[dTorus(0.21, 0.025, 14).rotateX(Math.PI / 2), 0xfff4e0, 0, 0.9, 0],                                    // dải eo
+  groom: (o) => [...suitParts(o), [dIco(0.05), 0xfff4e0, -0.15, 0.9, 0.15],                                            // hoa hồng cài ngực
+    [dBox(0.09, 0.07, 0.03), 0xf08fb0, -0.06, 1.0, 0.125, 0, 0, 0.25], [dBox(0.09, 0.07, 0.03), 0xf08fb0, 0.06, 1.0, 0.125, 0, 0, -0.25]],   // nơ cổ hồng
+  shirt: () => [-0.13, 0.13].flatMap((x) => [
+    [dBox(0.04, 0.46, 0.014), 0x3b2a1e, x, 0.76, 0.15, 0.13], [dBox(0.04, 0.46, 0.014), 0x3b2a1e, x, 0.76, -0.15, -0.13],   // dây đeo quần trước/sau, nghiêng theo mặt áo
+    [dBox(0.04, 0.014, 0.33), 0x3b2a1e, x, 0.985, 0],                                                                     // vắt qua vai
+    [dIco(0.022), 0xd4af37, x, 0.56, 0.158]]),                                                                           // móc kim loại
+  dressPink: () => [[dTorus(0.41, 0.03, 16, Math.PI), 0xff4f9a, 0, 1.47, -0.02, -0.25]],   // băng đô (thân váy do dressGeo dựng)
+  dressYellow: () => ponytailParts([[0, 1.68, -0.33], [0, 1.62, -0.47], [0, 1.45, -0.57], [0, 1.25, -0.58], [0, 1.08, -0.54], [0, 0.93, -0.49]]),   // đuôi ngựa cột cao
+
+  bride: () => [
     ...[...Array(7)].map((_, k) => { const a = Math.PI * (0.1 + k * 0.133); return [dIco(0.055), 0xff9ab8, Math.cos(a) * 0.37, 1.77 + Math.sin(a) * 0.04, Math.sin(a) * 0.3 - 0.1]; })],   // vòng hoa vắt ngang đỉnh đầu
 };
-function addDeco(body, headG, o) {
-  const parts = DECO[o.deco] ? DECO[o.deco](o) : null; if (!parts) return;
-  const m = new THREE.Mesh(mergeC(parts), VC); m.castShadow = m.receiveShadow = false; body.add(m);
-  if (o.deco === 'bride') {                          // voan: một tấm trong suốt rủ sau đầu
-    const veil = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.25), new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
-    veil.position.set(0, 0.9, -0.46); veil.rotation.x = -0.14; veil.castShadow = false; headG.add(veil);
+/* Mặt tròn xoay có màu theo đỉnh: pts = [[bán kính, độ cao]] từ dưới lên; colorAt(y, color) ghi màu tại độ cao y;
+   wave = { y, amp, n } làm vòng đáy (tính từ độ cao y) lượn sóng n múi. Trả về geometry không index, có thuộc tính color. */
+function latheC(pts, seg, colorAt, wave, phi) {                  // phi = [góc bắt đầu, độ rộng góc] nếu chỉ cần một phần cung (0 = hướng +z)
+  const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg, phi ? phi[0] : 0, phi ? phi[1] : Math.PI * 2), P = g.attributes.position, col = new Float32Array(P.count * 3), t = new THREE.Color();
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    if (wave) { const w = clamp((wave.y + 0.07 - y) / 0.07, 0, 1); if (w > 0) P.setY(i, y + w * wave.amp * Math.sin(Math.atan2(z, x) * wave.n)); }
+    colorAt(y, t); col.set([t.r, t.g, t.b], i * 3);
   }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g.toNonIndexed();
+}
+/* Váy ngắn: thân áo bó eo + chân váy xoè, màu đậm dần về gấu, gấu lượn sóng, viền gấu, dây lưng + nơ, tay phồng. Gộp MỘT mesh (VC). */
+function dressGeo(o) {
+  const c = new THREE.Color(o.top), trim = c.clone().lerp(new THREE.Color(0xffffff), 0.55), sash = c.clone().multiplyScalar(0.7);
+  const skirt = latheC([[0.48, 0.26], [0.46, 0.32], [0.40, 0.40], [0.33, 0.50], [0.26, 0.62], [0.2, 0.72], [0.16, 0.78], [0.17, 0.84], [0.21, 0.9], [0.23, 0.95], [0.17, 0.995], [0.07, 1.0]], 20,
+    (y, t) => t.copy(c).multiplyScalar(0.8 + 0.2 * clamp((y - 0.26) / 0.74, 0, 1)), { y: 0.26, amp: 0.028, n: 9 });
+  const wing = () => new RoundedBoxGeometry(0.15, 0.1, 0.04, 1, 0.02);
+  const rest = mergeC([
+    [dTorus(0.475, 0.028, 20), trim, 0, 0.272, 0, Math.PI / 2],                      // viền gấu
+    [dTorus(0.17, 0.03, 16), sash, 0, 0.79, 0, Math.PI / 2],                         // dây lưng
+    [wing(), sash, -0.1, 0.8, -0.2, 0, 0, 0.45], [wing(), sash, 0.1, 0.8, -0.2, 0, 0, -0.45], [new RoundedBoxGeometry(0.06, 0.06, 0.05, 1, 0.02), sash, 0, 0.8, -0.205],   // nơ sau lưng
+    [new THREE.SphereGeometry(0.1, 10, 8), c, -0.27, 0.93, 0], [new THREE.SphereGeometry(0.1, 10, 8), c, 0.27, 0.93, 0],   // tay phồng
+  ]);
+  return mergeGeometries([skirt, rest]);
+}
+/* Váy cưới cô dâu: áo cúp ngực lộ vai (phần da là mặt tròn xoay màu da), viền ren cổ, dây lưng vàng + hoa, nơ lớn sau lưng,
+   chân váy xoè ba lớp (ngà → trắng → trắng ngà), gấu lượn sóng, đuôi váy trải sau lưng. Gộp MỘT mesh (VC). */
+function brideGownGeo() {
+  // Màu trắng nhân 1.15 để vùng khuất sáng vẫn ra trắng dưới ánh đèn hồng/vàng của tiệc (màu đỉnh là float, không bị cắt ở 1)
+  const blushHem = new THREE.Color(0xffdfe8), white = new THREE.Color(1.15, 1.15, 1.15), cream = new THREE.Color(1.15, 1.1, 1.06), pearl = new THREE.Color(1.2, 1.2, 1.2);
+  const gold = new THREE.Color(0xe8c27a), skin = new THREE.Color(0xffd7b5), blush = new THREE.Color(0xf29ab5);
+  const grad = (a, b, y0, y1) => (y, t) => t.copy(a).lerp(b, clamp((y - y0) / (y1 - y0), 0, 1)), flat = (c) => (y, t) => t.copy(c);
+  const under = latheC([[0.56, 0.04], [0.54, 0.12], [0.45, 0.3], [0.37, 0.46], [0.28, 0.6], [0.2, 0.72], [0.16, 0.78]], 24, grad(blushHem, white, 0.04, 0.6), { y: 0.04, amp: 0.03, n: 10 });
+  const tier1 = latheC([[0.54, 0.28], [0.45, 0.4], [0.35, 0.55], [0.26, 0.68], [0.19, 0.76]], 24, flat(white), { y: 0.28, amp: 0.035, n: 12 });
+  const tier2 = latheC([[0.45, 0.5], [0.35, 0.6], [0.27, 0.7], [0.2, 0.77]], 24, flat(cream), { y: 0.5, amp: 0.03, n: 14 });
+  const bodice = latheC([[0.16, 0.78], [0.17, 0.84], [0.21, 0.9], [0.235, 0.95], [0.2, 0.99], [0.09, 1.0]], 20, flat(white));   // áo kín đến cổ, tay dài trắng (màu tay đặt ở buildCouple)
+  const wing = () => new RoundedBoxGeometry(0.2, 0.14, 0.05, 1, 0.03), tail = () => new RoundedBoxGeometry(0.06, 0.32, 0.03, 1, 0.015);
+  const shape = new THREE.Shape(); shape.moveTo(-0.3, 0); shape.bezierCurveTo(-0.55, 0.3, -0.5, 0.62, 0, 0.7); shape.bezierCurveTo(0.5, 0.62, 0.55, 0.3, 0.3, 0); shape.lineTo(-0.3, 0);
+  const rest = mergeC([
+    [dTorus(0.135, 0.024, 16), white, 0, 0.99, 0, Math.PI / 2],                     // viền ren cổ áo
+    [dTorus(0.17, 0.028, 16), gold, 0, 0.79, 0, Math.PI / 2], [dIco(0.05), blush, 0, 0.79, 0.17],   // dây lưng vàng + hoa trước bụng
+    [wing(), white, -0.13, 0.82, -0.2, 0, 0, 0.5], [wing(), white, 0.13, 0.82, -0.2, 0, 0, -0.5], [new RoundedBoxGeometry(0.07, 0.07, 0.06, 1, 0.02), white, 0, 0.82, -0.21],   // nơ lớn sau lưng
+    [tail(), white, -0.05, 0.6, -0.27, 0.12, 0, 0.12], [tail(), white, 0.05, 0.6, -0.27, 0.12, 0, -0.12],                                          // hai dải nơ rủ
+    [dTorus(0.56, 0.028, 18), gold, 0, 0.062, 0, Math.PI / 2],                       // viền gấu vàng nhạt
+    [new THREE.ShapeGeometry(shape, 8), blushHem, 0, 0.05, -0.45, -Math.PI / 2],     // đuôi váy trải sau lưng
+    ...[...Array(10)].map((_, k) => { const a = k / 10 * Math.PI * 2; return [dIco(0.03), pearl, Math.cos(a) * 0.54, 0.285, Math.sin(a) * 0.54]; }),   // hạt ngọc quanh gấu lớp trên
+  ]);
+  return mergeGeometries([under, tier1, tier2, bodice, rest]);
+}
+/* Áo dài: thân ôm eo + cổ đứng viền vàng, hai tà (trước/sau) buông tới bắp chân, hở hai bên cho thấy quần; gấu có dải thêu vàng.
+   Tay áo là capsule của rig (màu o.arm). Gộp MỘT mesh (VC2 hai mặt vì vạt là vải mỏng một lớp). */
+function aoDaiGeo(o) {
+  const c = new THREE.Color(o.top), gold = new THREE.Color(0xffd166);
+  const tone = (y, t) => t.copy(c).multiplyScalar(0.88 + 0.12 * clamp((y - 0.28) / 0.72, 0, 1));            // đậm dần về gấu
+  const edge = (y, t) => { tone(y, t); t.lerp(gold, clamp((0.36 - y) / 0.08, 0, 1)); };                       // dải thêu vàng ở gấu
+  // Thân áo KHÉP KÍN một vòng từ cổ xuống gấu (y 0.28), không để hở hai bên cho khỏi thấy chân/xuyên thấu khi nhìn ngang
+  const body = latheC([[0.27, 0.28], [0.25, 0.45], [0.225, 0.58], [0.215, 0.66], [0.2, 0.72], [0.17, 0.77], [0.16, 0.78], [0.2, 0.9], [0.235, 0.95], [0.2, 0.99], [0.115, 1.0], [0.115, 1.1]], 20, edge, { y: 0.28, amp: 0.015, n: 6 });
+  // Hai tà trước/sau phủ ngoài thân, dài hơn một đoạn, gấu thêu vàng: tạo dáng vạt áo dài
+  const flap = [[0.285, 0.2], [0.272, 0.28], [0.255, 0.45], [0.235, 0.58], [0.225, 0.66]];
+  const front = latheC(flap, 8, edge, { y: 0.2, amp: 0.012, n: 5 }, [-0.75, 1.5]), back = latheC(flap, 8, edge, { y: 0.2, amp: 0.012, n: 5 }, [Math.PI - 0.75, 1.5]);
+  const rest = mergeC([[dTorus(0.116, 0.016, 16), gold, 0, 1.1, 0, Math.PI / 2]]);                            // viền cổ vàng
+  return mergeGeometries([body, front, back, rest]);
+}
+/* Sơ mi: thân sơ mi tiết diện elip (bỏ vào quần, thon eo), cổ áo bẻ hai cánh, cúc áo, cạp quần + thắt lưng che khoảng hở giữa thân và hai chân.
+   Dây đeo quần do DECO.shirt thêm. Gộp MỘT mesh (VC). */
+function shirtGeo(o) {
+  const c = new THREE.Color(o.top).multiplyScalar(1.1), pants = new THREE.Color(o.bottom), belt = 0x3b2a1e, grey = 0x9a9a9a;
+  const body = latheC([[0.21, 0.5], [0.2, 0.58], [0.19, 0.68], [0.22, 0.84], [0.235, 0.95], [0.17, 0.995], [0.09, 1.0]], 20, (y, t) => t.copy(c).multiplyScalar(0.92 + 0.08 * clamp((y - 0.5) / 0.5, 0, 1)));
+  body.scale(1.12, 1, 0.78);
+  const waist = latheC([[0.2, 0.4], [0.215, 0.46], [0.21, 0.52]], 20, (y, t) => t.copy(pants)); waist.scale(1.12, 1, 0.78);
+  const flap = () => new RoundedBoxGeometry(0.09, 0.07, 0.02, 1, 0.008);
+  const rest = mergeC([
+    [dTorus(0.2, 0.016, 16).rotateX(Math.PI / 2).scale(1.12, 1, 0.78), belt, 0, 0.53, 0],                       // thắt lưng
+    [dTorus(0.105, 0.024, 12), c, 0, 1.0, 0, Math.PI / 2], [flap(), c, -0.065, 1.0, 0.1, 0, 0, 0.7], [flap(), c, 0.065, 1.0, 0.1, 0, 0, -0.7],   // cổ áo bẻ hai cánh
+    ...[[0.93, 0.186], [0.83, 0.172], [0.73, 0.16], [0.63, 0.156]].map(([y, z]) => [dIco(0.016), grey, 0, y, z]),   // hàng cúc
+  ]);
+  return mergeGeometries([body, waist, rest]);
+}
+/* Tóc: mũ tóc nghiêng ra sau (lộ trán) + gáy + mái 5 lọn; nữ thêm tóc mai hai bên, nam thêm chỏm trước. Màu theo đỉnh: sáng ở đỉnh, tối dần xuống gáy.
+   Toạ độ theo hệ của headG (tâm đầu ở y = 1.13). Gộp MỘT mesh (VC). */
+function hairGeo(o) {
+  const female = o.kind === 'aodai' || o.kind === 'dress';
+  const parts = [
+    new THREE.SphereGeometry(0.405, 18, 9, 0, Math.PI * 2, 0, Math.PI * 0.46).rotateX(-0.4).translate(0, 1.15, 0),   // mũ tóc
+    new THREE.SphereGeometry(0.34, 12, 8).translate(0, 1.1, -0.12),                                                  // gáy
+    ...[-0.2, -0.1, 0, 0.1, 0.2].map((x) => new THREE.SphereGeometry(0.09, 6, 4).scale(1, 0.75, 0.7).translate(x, 1.36 - Math.abs(x) * 0.3, Math.sqrt(Math.max(0.01, 0.3 * 0.3 - x * x)) + 0.03)),   // mái
+    ...(female ? [-1, 1].map((s) => new THREE.SphereGeometry(0.085, 6, 4).scale(0.6, 1.5, 0.9).translate(s * 0.345, 1.2, 0.09)) : [new THREE.SphereGeometry(0.17, 8, 6).scale(1.25, 0.32, 1).translate(0.05, 1.48, 0.15)]),   // tóc mai (nữ) / chỏm (nam)
+  ];
+  const g = mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p))), P = g.attributes.position, col = new Float32Array(P.count * 3), base = new THREE.Color(o.hair), t = new THREE.Color();
+  for (let i = 0; i < P.count; i++) { t.copy(base).multiplyScalar(0.72 + 0.5 * clamp((P.getY(i) - 1.0) / 0.55, 0, 1)); col.set([t.r, t.g, t.b], i * 3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); return g;
+}
+/* Vest: áo khoác tiết diện elip (rộng vai, thon eo), ve áo satin, sơ mi trắng hình chữ V, cà vạt hồng, cúc. Gộp MỘT mesh (VC). */
+function suitGeo(o) {
+  const c = new THREE.Color(o.top), satin = c.clone().multiplyScalar(1.9), white = new THREE.Color(1.1, 1.1, 1.1), pink = new THREE.Color(0xf08fb0);
+  const jacket = latheC([[0.215, 0.5], [0.21, 0.6], [0.19, 0.72], [0.225, 0.86], [0.235, 0.95], [0.17, 0.995], [0.09, 1.0]], 20, (y, t) => t.copy(c).multiplyScalar(0.9 + 0.1 * clamp((y - 0.5) / 0.5, 0, 1)));
+  jacket.scale(1.15, 1, 0.75);                                                                                  // elip: vai rộng, ngực mỏng
+  const v = new THREE.Shape(); v.moveTo(-0.1, 0.99); v.lineTo(0.1, 0.99); v.lineTo(0, 0.7);
+  const lapel = () => new RoundedBoxGeometry(0.06, 0.3, 0.02, 1, 0.008);
+  const rest = mergeC([
+    [new THREE.ShapeGeometry(v), white, 0, 0, 0.176],                                                          // sơ mi lộ ra giữa hai ve áo
+    [lapel(), satin, -0.095, 0.85, 0.172, 0, 0, 0.35], [lapel(), satin, 0.095, 0.85, 0.172, 0, 0, -0.35],     // ve áo
+    ...(o.deco === 'groom' ? [] : [[new RoundedBoxGeometry(0.045, 0.24, 0.02, 1, 0.008), pink, 0, 0.82, 0.185], [new RoundedBoxGeometry(0.06, 0.045, 0.03, 1, 0.012), pink, 0, 0.955, 0.18]]),   // cà vạt (chú rể đã có nơ cổ)
+    [dIco(0.02), 0x111111, 0, 0.62, 0.152], [dIco(0.02), 0x111111, 0, 0.55, 0.16],                              // cúc áo
+  ]);
+  return mergeGeometries([jacket, rest]);
+}
+function addDeco(body, headG, o) {
+  const parts = DECO[o.deco] ? DECO[o.deco](o) : null; if (!parts) return null;
+  const m = new THREE.Mesh(mergeC(parts), VC); m.castShadow = m.receiveShadow = false; body.add(m);
+  if (o.deco === 'bride') {                          // voan: tấm lụa mỏng ôm quanh phía sau đầu (±74°) rồi buông xuống vai, gấu lượn nhẹ
+    const prof = [[0.06, 1.62], [0.3, 1.6], [0.46, 1.47], [0.52, 1.25], [0.5, 1.0], [0.46, 0.8], [0.49, 0.62]].map(([r, y]) => new THREE.Vector2(r, y - 1.13));   // toạ độ so với tâm đầu
+    const vg = new THREE.LatheGeometry(prof, 14, Math.PI - 1.1, 2.2), VP = vg.attributes.position;
+    for (let i = 0; i < VP.count; i++) if (VP.getY(i) < -0.45) VP.setY(i, VP.getY(i) + 0.03 * Math.sin(Math.atan2(VP.getX(i), VP.getZ(i)) * 7));
+    vg.computeVertexNormals();
+    const veil = new THREE.Group(); veil.position.set(0, 1.13, 0); headG.add(veil);   // trục xoay tại tâm đầu để lò xo đung đưa nhìn tự nhiên
+    const vm = new THREE.Mesh(vg, new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })); vm.castShadow = false; veil.add(vm);
+    veil.rotation.x = -0.14;
+    return veil;
+  }
+  return null;
 }
 // Dựng một nhân vật chibi (dùng cho người chơi và cô dâu chú rể)
 function buildCharacter(o, name) {
-  const g = new THREE.Group(), skin = M(0xffd7b5), hairMat = M(o.hair), topMat = M(o.top), botMat = M(o.bottom), armMat = M(o.arm);
+  // armGlow: cộng chút phát sáng để tay áo trắng không bị đèn hồng/vàng của tiệc nhuộm thành màu da
+  const g = new THREE.Group(), skin = M(0xffd7b5), hairMat = M(o.hair), topMat = M(o.top), botMat = M(o.bottom), armMat = o.armGlow ? new THREE.MeshLambertMaterial({ color: o.arm, emissive: o.armGlow }) : M(o.arm);
   const body = new THREE.Group(); g.add(body);
 
-  const legGeo = new THREE.CapsuleGeometry(0.09, 0.28, 3, 6), armGeo = new THREE.CapsuleGeometry(0.07, 0.1, 3, 6), foreGeo = new THREE.CapsuleGeometry(0.065, 0.1, 3, 6);
-  const legMat = o.kind === 'dress' ? skin : botMat, mkLimb = (geo, mat, x, y, cy) => {
+  const armGeo = new THREE.CapsuleGeometry(0.07, 0.1, 3, 8), foreGeo = new THREE.CapsuleGeometry(0.065, 0.1, 3, 8);
+  // Áo dài: quần lụa trắng có chút phát sáng để không bị nhầm với chân trần (màu kem dưới đèn ấm trông như da)
+  const legMat = o.kind === 'dress' ? skin : o.kind === 'aodai' ? new THREE.MeshLambertMaterial({ color: o.bottom, emissive: 0x3a3733 }) : botMat, mkLimb = (geo, mat, x, y, cy) => {
     const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p); put(p, geo, mat, 0, cy, 0); return p;
   };
-  const legL = mkLimb(legGeo, legMat, -0.13, 0.5, -0.25), legR = mkLimb(legGeo, legMat, 0.13, 0.5, -0.25);
+  // Chân có khớp: hông → đùi → gối → cẳng → cổ chân → giày. Hông do hoạt động điều khiển như cũ (legL/legR.rotation.x); gối và cổ chân do rigSmooth tính
+  // (gối gập khi chân vung ra trước, bàn chân bù góc để gần như đặt phẳng). Quần áo dài: ống quần loe dần xuống.
+  const flare = o.kind === 'aodai', shoeGeo = new RoundedBoxGeometry(0.16, 0.07, 0.25, 1, 0.03), shoeMat = M(o.shoe || 0x2b2230);
+  const thighGeo = new THREE.CylinderGeometry(flare ? 0.105 : 0.1, flare ? 0.1 : 0.085, 0.25, 8, 1, true), shinGeo = new THREE.CylinderGeometry(flare ? 0.1 : 0.08, flare ? 0.12 : 0.062, 0.205, 8, 1, true);
+  const hipBall = new THREE.SphereGeometry(flare ? 0.105 : 0.1, 7, 5), kneeBall = new THREE.SphereGeometry(flare ? 0.1 : 0.085, 7, 5);
+  const thighMesh = mergeGeometries([thighGeo.translate(0, -0.125, 0), hipBall]), shinMesh = mergeGeometries([kneeBall, shinGeo.translate(0, -0.1025, 0)]);   // gộp quả cầu khớp vào ống để bớt draw call
+  const mkLeg = (x) => {
+    const hip = new THREE.Group(); hip.position.set(x, 0.5, 0); body.add(hip);
+    put(hip, thighMesh, legMat, 0, 0, 0);
+    const knee = new THREE.Group(); knee.position.y = -0.25; hip.add(knee);
+    put(knee, shinMesh, legMat, 0, 0, 0);
+    const foot = new THREE.Group(); foot.position.y = -0.205; knee.add(foot);
+    put(foot, shoeGeo, shoeMat, 0, -0.015, 0.05);
+    return { hip, knee, foot };
+  };
+  const { hip: legL, knee: kneeL, foot: footL } = mkLeg(-0.13), { hip: legR, knee: kneeR, foot: footR } = mkLeg(0.13);
   const armL = mkLimb(armGeo, armMat, -0.31, 0.97, -0.1), armR = mkLimb(armGeo, armMat, 0.31, 0.97, -0.1);
-  const mkElbow = (arm) => { const e = new THREE.Group(); e.position.y = -0.2; arm.add(e); put(e, foreGeo, armMat, 0, -0.1, 0); return e; };   // khuỷu tay: cẳng tay xoay riêng, để thẳng thì giống cánh tay liền
+  // Tay áo liền mạch: quả cầu chặn ở khuỷu lấp chỗ thắt giữa hai capsule (không thì lộ khớp như da), cổ tay có viền (cuff) để đọc là mép tay áo.
+  const cuffCol = o.cuff !== undefined ? o.cuff : o.kind === 'aodai' ? 0xffd166 : o.kind === 'suit' ? 0xf4f4f4 : o.kind === 'shirt' ? 0xd9d9d9 : o.long ? 0xe8c27a : null;
+  const elbowBall = new THREE.SphereGeometry(0.068, 6, 5), cuffGeo = new THREE.TorusGeometry(0.066, 0.014, 4, 8).rotateX(Math.PI / 2), cuffMat = cuffCol === null ? null : M(cuffCol);
+  const mkElbow = (arm) => {
+    const e = new THREE.Group(); e.position.y = -0.2; arm.add(e); put(e, foreGeo, armMat, 0, -0.1, 0); put(e, elbowBall, armMat, 0, 0, 0, false, false);
+    if (cuffMat) put(e, cuffGeo, cuffMat, 0, -0.17, 0, false, false);
+    return e;
+  };   // khuỷu tay: cẳng tay xoay riêng, để thẳng thì giống cánh tay liền
   const elbowL = mkElbow(armL), elbowR = mkElbow(armR);
-  const handGeo = new THREE.SphereGeometry(0.075, 8, 6), shoeGeo = new THREE.BoxGeometry(0.16, 0.07, 0.25), shoeMat = M(o.shoe || 0x2b2230);
+  if (o.kind !== 'dress') { const shoulderBall = new THREE.SphereGeometry(0.07, 7, 5); for (const sx of [-1, 1]) put(body, shoulderBall, armMat, sx * 0.275, 0.925, 0, false, false); }   // khớp vai: lấp khe giữa thân và tay khi giơ tay (mọi bộ váy: váy ngắn đã có tay phồng, cô dâu không giơ tay cao nên khớp vai chỉ làm lồi vai)
+  const handGeo = new THREE.SphereGeometry(0.075, 10, 7);
   for (const e of [elbowL, elbowR]) put(e, handGeo, skin, 0, -0.2, 0.01);                                         // bàn tay
-  for (const l of [legL, legR]) put(l, shoeGeo, shoeMat, 0, -0.47, 0.04);                                    // giày
 
   if (o.kind === 'aodai') {
-    put(body, new THREE.CylinderGeometry(0.2, 0.3, 0.75, 10), topMat, 0, 0.66, 0);
-    put(body, new THREE.CylinderGeometry(0.15, 0.17, 0.06, 10), M(0xffd166), 0, 1.03, 0);
+    const aodai = new THREE.Mesh(aoDaiGeo(o), VC2); aodai.castShadow = aodai.receiveShadow = true; body.add(aodai);
   } else if (o.kind === 'dress') {
-    if (o.long) {                                         // váy cưới dài chấm đất
-      put(body, new THREE.CylinderGeometry(0.17, 0.52, 0.98, 16), topMat, 0, 0.5, 0);
-      put(body, new THREE.TorusGeometry(0.52, 0.025, 6, 20).rotateX(Math.PI / 2), M(0xfff4e0), 0, 0.03, 0, false, false);
-    } else {
-      put(body, new THREE.CylinderGeometry(0.17, 0.42, 0.7, 12), topMat, 0, 0.62, 0);
-      put(body, new THREE.BoxGeometry(0.26, 0.1, 0.12), M(0xffffff), 0, 0.82, -0.2);          // nơ sau lưng
-    }
+    const dress = new THREE.Mesh(o.long ? brideGownGeo() : dressGeo(o), VC); dress.castShadow = dress.receiveShadow = true; body.add(dress);   // váy ngắn hoặc váy cưới dài (o.long)
   } else if (o.kind === 'suit') {
-    put(body, new THREE.BoxGeometry(0.5, 0.52, 0.3), topMat, 0, 0.75, 0);
-    put(body, new THREE.BoxGeometry(0.2, 0.32, 0.02), M(0xffffff), 0, 0.8, 0.155);
-    put(body, new THREE.BoxGeometry(0.05, 0.22, 0.02), M(0xf08fb0), 0, 0.78, 0.17);          // cà vạt hồng
+    const suit = new THREE.Mesh(suitGeo(o), VC); suit.castShadow = suit.receiveShadow = true; body.add(suit);
   } else {
-    put(body, new THREE.BoxGeometry(0.48, 0.5, 0.3), topMat, 0, 0.75, 0);
+    const shirt = new THREE.Mesh(shirtGeo(o), VC); shirt.castShadow = shirt.receiveShadow = true; body.add(shirt);
   }
   // Đầu to (chibi): mặt về +z, tóc trùm sau/đỉnh đầu, búi tóc cho một số bộ
-  const headG = new THREE.Group(); headG.position.y = 0.32; body.add(headG);   // nâng đầu lên để lộ cổ
-  put(body, new THREE.CylinderGeometry(0.075, 0.09, 0.3, 10), skin, 0, 1.05, 0);                   // cổ
-  put(headG, new THREE.SphereGeometry(0.38, 16, 12), skin, 0, 1.13, 0);
-  const hair = put(headG, new THREE.SphereGeometry(0.405, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.46), hairMat, 0, 1.15, 0); hair.rotation.x = -0.4;   // tóc cao hơn: lộ trán và mắt
-  put(headG, new THREE.SphereGeometry(0.34, 12, 8), hairMat, 0, 1.1, -0.12);                       // tóc phía sau gáy
-  if (o.bun) put(headG, new THREE.SphereGeometry(0.15, 10, 8), hairMat, 0, 1.55, -0.12);
+  // headPivot là trục xoay ở CỔ (y = 1.0): gật/nghiêng đầu xoay quanh cổ chứ không quanh eo (nếu không đầu sẽ trượt khỏi cổ, nhìn như bị ghép rời).
+  // headG giữ nguyên toạ độ con cũ (tâm đầu ở y = 1.13 trong headG); hạ đầu xuống 0.04 để cằm ngồi sát vai.
+  const headPivot = new THREE.Group(); headPivot.position.y = 1.0; body.add(headPivot);
+  const headG = new THREE.Group(); headG.position.y = 0.28 - 1.0; headPivot.add(headG);
+  put(body, new THREE.CylinderGeometry(0.1, 0.115, 0.26, 12), skin, 0, 1.03, 0);                   // cổ dày và ngắn hơn
+  put(headG, new THREE.SphereGeometry(0.38, 20, 14), skin, 0, 1.13, 0);
+  const hairMesh = new THREE.Mesh(hairGeo(o), VC); hairMesh.castShadow = true; headG.add(hairMesh);   // mũ tóc + gáy + mái + tóc mai/chỏm, gộp một mesh có màu sáng tối
+  const bun = o.bun ? put(headG, new THREE.SphereGeometry(0.15, 10, 8), hairMat, 0, 1.55, -0.12) : null;
+  if (bun) put(bun, new THREE.TorusGeometry(0.105, 0.02, 5, 10).rotateX(Math.PI / 2), M(o.tie || 0xff8fb0), 0, -0.1, 0, false, false);   // dây buộc búi tóc (đi theo búi khi đung đưa)
+  const eyeMeshes = [], eyeGlints = [];                                           // giữ tham chiếu để rigSmooth làm chớp mắt
   for (const sx of [-1, 1]) {
-    put(headG, new THREE.SphereGeometry(0.065, 10, 8), M(0x2a1a2e), sx * 0.13, 1.1, 0.345, false, false).scale.z = 0.5;   // mắt to tròn (chibi)
-    put(headG, new THREE.SphereGeometry(0.02, 6, 5), M(0xffffff), sx * 0.13 + 0.022, 1.125, 0.37, false, false);          // đốm sáng trong mắt
+    const eye = put(headG, new THREE.SphereGeometry(0.065, 10, 8), M(0x2a1a2e), sx * 0.13, 1.1, 0.345, false, false); eye.scale.z = 0.5; eyeMeshes.push(eye);   // mắt to tròn (chibi)
+    eyeGlints.push(put(headG, new THREE.SphereGeometry(0.02, 6, 5), M(0xffffff), sx * 0.13 + 0.022, 1.125, 0.37, false, false));                                    // đốm sáng trong mắt
     put(headG, new THREE.SphereGeometry(0.065, 8, 6), M(0xff8fb0), sx * 0.23, 1.02, 0.29, false, false).scale.z = 0.4;   // má hồng
     const brow = put(headG, new THREE.BoxGeometry(0.1, 0.022, 0.02), hairMat, sx * 0.13, 1.23, 0.345, false, false); brow.rotation.z = -sx * 0.1;   // lông mày
   }
   put(headG, new THREE.SphereGeometry(0.035, 8, 6), M(0xe8b592), 0, 1.07, 0.375, false, false);                    // mũi
   const smile = put(headG, new THREE.TorusGeometry(0.07, 0.014, 6, 14, Math.PI), M(0x9b2c2c), 0, 1.03, 0.358, false, false); smile.rotation.z = Math.PI;   // miệng cười
 
-  if (o.deco) addDeco(body, headG, o);
+  const veil = o.deco ? addDeco(body, headG, o) : null;
 
   // Bảng tên trên đầu
   const tex = canvasTex(512, 96, (c, w, h) => {
@@ -1204,8 +1378,79 @@ function buildCharacter(o, name) {
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false })); tag.scale.set(2.1, 0.39, 1); tag.position.set(0, 2.37, 0);
   g.add(tag);
 
-  return { g, rig: { body, legL, legR, armL, armR, elbowL, elbowR }, tag };
+  // root/nodes/head/veil/bun phục vụ rigSmooth; các hoạt động chỉ dùng body/legs/arms/elbows như trước
+  const rig = { body, legL, legR, kneeL, kneeR, footL, footR, armL, armR, elbowL, elbowR, root: g, nodes: [body, legL, legR, armL, armR, elbowL, elbowR], head: headPivot, veil, bun, bunY: 1.55, eyes: eyeMeshes, glints: eyeGlints };
+  rigSmooth.add(rig);
+  return { g, rig, tag };
 }
+
+/* Làm mượt tư thế. Các hoạt động ghi thẳng rotation của rig mỗi khung (coi là "đích"). Ngay trước khi vẽ, tư thế hiển thị
+   tiến dần tới đích bằng damping mũ (độc lập tốc độ khung hình); ngay sau khi vẽ, rotation được trả về đích nên logic game
+   vẫn đọc/ghi đúng giá trị của nó. Thêm chuyển động thứ cấp: đầu/voan/búi tóc trễ nhịp theo độ nảy của thân (lò xo hơi vọt). */
+/* Lớp "sống": nhân vật đứng yên không còn như tượng. Thở, chuyển trọng tâm, tay hơi gập, đầu liếc quanh hoặc nhìn theo mục tiêu, chớp mắt.
+   Các hoạt động điều khiển qua hai trường tuỳ chọn trên rig: r.look = Vector3 thế giới (đầu quay nhìn tới đó; null = liếc ngẫu nhiên),
+   r.kick = số (gật đầu một nhịp, ~2–3 là rõ). Tất cả chỉ cộng lúc vẽ và được trả về đích sau khi vẽ. */
+const _lk = new THREE.Vector3();
+const rigSmooth = {
+  rigs: new Set(), k: 16,
+  add(r) { this.rigs.add(r); },
+  apply(dt, time) {
+    const a = 1 - Math.exp(-this.k * dt);
+    for (const r of this.rigs) {
+      if (!r.root.parent) { this.rigs.delete(r); continue; }          // nhân vật đã bị gỡ khỏi cảnh (đổi trang phục)
+      const s = r.sm || (r.sm = { init: false, on: false, tgt: new Float32Array(21), cur: new Float32Array(21), ang: 0, vel: 0, py: 0, hip: [0, 0], kn: [0, 0], ph: Math.random() * 100, nextBlink: 1 + Math.random() * 3, blinkT: -1, gNext: 0, gy: 0, gx: 0, hy: 0, hx: 0, na: 0, nv: 0 });
+      if (!r.root.visible) { s.init = false; continue; }               // đang ẩn: lần hiện sau vào thẳng tư thế mới, không trượt từ tư thế cũ
+      const { tgt, cur } = s;
+      r.nodes.forEach((n, i) => { tgt[i * 3] = n.rotation.x; tgt[i * 3 + 1] = n.rotation.y; tgt[i * 3 + 2] = n.rotation.z; });
+      if (!s.init) { cur.set(tgt); s.init = true; s.vel = s.ang = 0; s.py = r.body.position.y; s.hip[0] = tgt[3]; s.hip[1] = tgt[6]; s.kn[0] = s.kn[1] = 0; }
+      else for (let i = 0; i < 21; i++) cur[i] += (tgt[i] - cur[i]) * a;
+      r.nodes.forEach((n, i) => n.rotation.set(cur[i * 3], cur[i * 3 + 1], cur[i * 3 + 2]));
+      s.on = true;
+      // Chân: gối gập theo tốc độ hông đang vung ra trước (âm), bàn chân bù góc gần như đặt phẳng; đứng yên thì chân thẳng
+      const kk = 1 - Math.exp(-25 * dt);
+      [[r.legL, r.kneeL, r.footL], [r.legR, r.kneeR, r.footR]].forEach(([hip, knee, foot], k) => {
+        const h = hip.rotation.x, hv = (h - s.hip[k]) / Math.max(dt, 1e-3); s.hip[k] = h;
+        s.kn[k] += (clamp(-hv * 0.11, 0, 1.1) - s.kn[k]) * kk;
+        knee.rotation.x = s.kn[k]; foot.rotation.x = -(h + s.kn[k]) * 0.85;
+      });
+      const vy =(r.body.position.y - s.py) / Math.max(dt, 1e-3); s.py = r.body.position.y;
+      const drive = clamp(-vy * 0.25, -0.5, 0.5);
+      s.vel += (-120 * (s.ang - drive) - 9 * s.vel) * dt; s.ang += s.vel * dt;
+      // Thở + chuyển trọng tâm + tay hơi gập (giảm khi đang đi)
+      const tm = time + s.ph, calm = r.walking ? 0.2 : 1;
+      r.body.scale.y = 1 + 0.006 * Math.sin(tm * 1.9);
+      r.body.rotation.z += 0.01 * Math.sin(tm * 0.8) * calm; r.body.rotation.x += 0.005 * Math.sin(tm * 1.9 + 1) * calm;
+      r.armL.rotation.z -= 0.02 * Math.sin(tm * 1.9 + 0.6) * calm; r.armR.rotation.z += 0.02 * Math.sin(tm * 1.9 + 0.2) * calm;
+      r.elbowL.rotation.x -= 0.07 * calm; r.elbowR.rotation.x -= 0.07 * calm;
+      // Ánh nhìn: có mục tiêu thì quay đầu một phần về phía đó (không quay hết cho khỏi gượng); không thì chỉ trôi rất nhẹ quanh chính giữa, không liếc ngẫu nhiên
+      let gy = 0, gx = 0;
+      if (r.look) {
+        _lk.copy(r.look); r.root.worldToLocal(_lk); const yaw = Math.atan2(_lk.x, _lk.z);
+        const lk = r.lookK === undefined ? 0.6 : r.lookK;                                  // < 1: chỉ quay đầu một phần (hai đầu to đứng sát nhau sẽ chạm nhau nếu quay hết)
+        if (Math.abs(yaw) < 1.6) { gy = clamp(yaw, -0.9, 0.9) * lk; gx = -clamp(Math.atan2(_lk.y - 1.45, Math.hypot(_lk.x, _lk.z) || 1e-3), -0.15, 0.15); }
+      } else {
+        gy = 0.04 * Math.sin(tm * 0.5) * calm; gx = 0.02 * Math.sin(tm * 0.37) * calm;
+      }
+      const hk = 1 - Math.exp(-6 * dt); s.hy += (gy - s.hy) * hk; s.hx += (gx - s.hx) * hk;
+      if (r.kick) { s.nv += r.kick; r.kick = 0; }                                  // gật đầu: dao động tắt dần
+      s.nv += (-70 * s.na - 9 * s.nv) * dt; s.na += s.nv * dt;
+      r.head.rotation.x = s.ang * 0.25 + s.hx + s.na; r.head.rotation.y = s.hy; r.head.rotation.z = 0.02 * Math.sin(tm * 0.7) * calm - s.hy * 0.08;
+      // Chớp mắt: 2–6 giây một lần, thỉnh thoảng chớp đôi
+      if (s.blinkT < 0 && tm > s.nextBlink) { s.blinkT = 0; s.nextBlink = tm + (Math.random() < 0.15 ? 0.35 : 2 + Math.random() * 4); }
+      let lid = 1; if (s.blinkT >= 0) { s.blinkT += dt; const p = s.blinkT / 0.14; if (p >= 1) s.blinkT = -1; else lid = 1 - 0.9 * Math.sin(Math.PI * p); }
+      for (const e of r.eyes) e.scale.y = lid; for (const g of r.glints) g.visible = lid > 0.5;
+      if (r.veil) r.veil.rotation.x = -0.14 + s.ang * 0.9;
+      if (r.bun) r.bun.position.y = r.bunY + s.ang * 0.1;
+    }
+  },
+  restore() {
+    for (const r of this.rigs) {
+      const s = r.sm; if (!s || !s.on) continue;
+      r.nodes.forEach((n, i) => n.rotation.set(s.tgt[i * 3], s.tgt[i * 3 + 1], s.tgt[i * 3 + 2]));
+      s.on = false;
+    }
+  },
+};
 
 /* =====================================================================
    8. ĐIỀU KHIỂN: cần ảo (trái), WASD/mũi tên, kéo để xoay camera
@@ -1339,7 +1584,7 @@ function loop(now) {
   }
   sparks.update(dt); hearts.update(dt);
   updateCamera(dt, now / 1000); updateBulbs(now / 1000);
-  renderer.render(scene, camera);
+  rigSmooth.apply(dt, now / 1000); renderer.render(scene, camera); rigSmooth.restore();
   if (photoAct.want) photoAct.grab();                  // chụp khung hình ngay sau khi vẽ (bộ đệm vẽ chưa bị xoá)
   if (showFps) { acc += dt; frames++; if (acc >= 0.5) { fpsEl.textContent = Math.round(frames / acc) + ' fps · ' + renderer.info.render.calls + ' calls'; acc = 0; frames = 0; } }
 }
@@ -1432,7 +1677,7 @@ function makeTray() {
 function buildCouple() {
   const defs = [
     [{ kind: 'suit', top: 0x23283b, bottom: 0x23283b, arm: 0x23283b, hair: 0x1b1b1b, bun: false, deco: 'groom', shoe: 0x15151c }, 'Chú rể Quốc Tuân', -0.85, 0.15],
-    [{ kind: 'dress', long: true, top: 0xffffff, bottom: 0xffd7b5, arm: 0xffd7b5, hair: 0x1b1b1b, bun: true, deco: 'bride', shoe: 0xffffff }, 'Cô dâu Ngọc Khánh', 0.85, -0.15],
+    [{ kind: 'dress', long: true, top: 0xffffff, bottom: 0xffd7b5, arm: 0xffffff, armGlow: 0x3a3436, hair: 0x1b1b1b, bun: true, deco: 'bride', shoe: 0xffffff }, 'Cô dâu Ngọc Khánh', 0.85, -0.15],
   ];
   for (const [o, name, x, ry] of defs) {
     const c = buildCharacter(o, name);
@@ -2708,7 +2953,7 @@ const PHOTO_POSES = {
     { icon: '💞', name: 'Tựa đầu', apply(r, T, side) {                                 // nghiêng đầu về phía người đứng cạnh
       r.armL.rotation.z = -0.12; r.armR.rotation.z = 0.12; r.elbowL.rotation.z = -0.2; r.elbowR.rotation.z = 0.2; r.body.rotation.z = (side === 'bride' ? 0.11 : -0.11) + 0.015 * Math.sin(T * 2); } }],
 };
-const resetRig = (r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); r.body.rotation.set(0, 0, 0); };
+const resetRig = (r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); r.body.rotation.set(0, 0, 0); r.look = null; r.lookK = 0.6; };
 const angLerp = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
 const photoAct = {
   t: 0, cs: 0, state: 'walk', mode: 'solo', side: 'bride', pz: 0, pa: 0, pb: 0, pt: 1, pose: 0, cm: 0, rest: [], after: null, busy: false,
@@ -2817,9 +3062,9 @@ const photoAct = {
     if (this.state === 'leave' && this.cm <= 0) { const f = this.after; this.after = null; if (f) f(); return; }
     if (this.state !== 'walk' && this.state !== 'leave' && this.pt >= 1) {                                              // dáng đang chọn chạy ngay trên nhân vật, cả lúc đếm ngược
       resetRig(r); r.body.position.y = 0; poseWalker(r, 0, 0, false); const pose = PHOTO_POSES[this.mode][this.pose];
-      pose.apply(r, T, this.side);
+      pose.apply(r, T, this.side); r.look = camera.position;                                                          // nhìn thẳng vào máy ảnh
     } else if (this.state === 'leave') resetRig(r);
-    if (this.cm >= 1) coupleRigs.forEach((cr, i) => { resetRig(cr); linkCouple(cr, i === 0 ? 'groom' : 'bride'); });   // cô dâu chú rể chỉ khoác tay đứng yên
+    if (this.cm >= 1) coupleRigs.forEach((cr, i) => { resetRig(cr); linkCouple(cr, i === 0 ? 'groom' : 'bride'); cr.look = camera.position; });   // cô dâu chú rể chỉ khoác tay đứng yên   // cô dâu chú rể chỉ khoác tay đứng yên
     if (this.state === 'count') {
       const el = T - this.cs, n = PHOTO.n - Math.floor(el / PHOTO.count);
       if (n !== this.last && n > 0) { this.last = n; $('photoCount').textContent = String(n); audio.tone(660 + (PHOTO.n - n) * 110, 0.12, 'sine', 0.06); buzz(12); }
@@ -2956,7 +3201,7 @@ const finaleAct = {
    Máy quay chuyển sang cảnh quay riêng (cam.free) qua một nhịp tối màn, cô dâu chú rể diễn theo dòng thời gian T (giây kể từ lúc sáng lại). Có nút Bỏ qua.
    Lần đầu xem hết mỗi sự kiện được nhiều điểm Vui, các lần sau ít để không cày điểm bằng cách xem lại.
    ===================================================================== */
-const CER = { ringZ: -16.4, ringGap: 0.5, ringTurn: 0.25, ringReach: 0.12, turn: 0.3, reach: 0.3, z: -16.75, nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
+const CER = { ringZ: -16.4, ringGap: 0.62, ringTurn: 0.8, ringReach: 0.12, turn: 0.3, reach: 0.3, z: -16.75, nudgeRing: 60, nudgeCake: 150, pts: 30, ptsAgain: 5, end: 15.6 };
 const seg = (T, a, b) => clamp((T - a) / (b - a), 0, 1);
 const GOLD_SPARK = [0xffd166, 0xfff4c2, 0xffffff], CONFETTI = [0xff5c8a, 0xffd166, 0x7bdcff, 0xffffff, 0xb892ff], PINKS = [0xff5c8a, 0xff9ab0, 0xffd7e4];
 const chime = () => [784, 988, 1175, 1568].forEach((f, i) => audio.tone(f, 0.55, 'triangle', 0.08, i * 0.1));
@@ -3008,7 +3253,7 @@ const CER_CAPS = {
   ring: [[0.3, 'Xin mời cô dâu chú rể trao nhẫn cưới cho nhau!'], [4.6, 'Chú rể Quốc Tuân đeo nhẫn cho cô dâu Ngọc Khánh'], [8.9, 'Cô dâu Ngọc Khánh đeo nhẫn cho chú rể Quốc Tuân'], [12.8, 'Chúc mừng hai bạn! Trăm năm hạnh phúc ♥']],
   cake: [[0.3, 'Xin mời cô dâu chú rể cắt bánh cưới!'], [4.0, 'Cắt bánh rồi! Chúc hai bạn ngọt ngào ♥'], [6.2, 'Đút bánh cho nhau nào!'], [12.4, 'Chúc mừng hai bạn! Trăm năm hạnh phúc ♥']],
 };
-const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3();
+const _h1 = new THREE.Vector3(), _h2 = new THREE.Vector3(), _lkB = new THREE.Vector3(), _lkG = new THREE.Vector3();
 const handW = (elbow, out) => { elbow.updateWorldMatrix(true, false); return elbow.localToWorld(out.set(0, -0.25, 0.02)); };
 // Đưa một cánh tay ra trước, khuỷu gập: pitch = góc nâng tổng (rad), side = +1 khép sang phải / -1 sang trái, k = mức khép về giữa
 function reachArm(rig, which, pitch, side, k) {
@@ -3082,19 +3327,23 @@ const ceremonyAct = {
     const zz = lerp(-17.2, CER.ringZ, k);                                                       // bước lên phía trước bánh, đứng cạnh nhau nhìn ra khán giả, hai bàn tay chụm vào nhau ở giữa
     g.position.set(lerp(-0.85, -CER.ringGap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, CER.ringGap, k), CFG.stage.h, zz);
     g.rotation.y = lerp(0.15, CER.ringTurn, k); b.rotation.y = lerp(-0.15, -CER.ringTurn, k);
+    const meet = T > 1.8;                                                                       // đã vào vị trí thì nhìn nhau, trước đó nhìn khán giả (máy quay)
+    rg.look = meet ? b.localToWorld(_lkB.set(0, 1.5, 0.1)) : camera.position; rb.look = meet ? g.localToWorld(_lkG.set(0, 1.5, 0.1)) : camera.position;
+    rg.lookK = rb.lookK = meet ? 0.5 : 0.6;
     const up = up0(T), swap = ease(seg(T, 7.4, 8.4));                            // người đeo giơ tay cao hơn, người được đeo đưa tay thấp hơn; đến lượt hai thì đổi chỗ
     reachArm(rg, 'R', up * lerp(1.5, 1.25, swap), 1, up * CER.ringReach); reachArm(rb, 'L', up * lerp(1.25, 1.5, swap), -1, up * CER.ringReach);
     handW(rg.elbowR, _h1); handW(rb.elbowL, _h2);
+    rg.body.rotation.z = -0.06 * up; rb.body.rotation.z = 0.06 * up;                          // nghiêng người về phía nhau khi đưa tay
     if (T >= 2.4) {                                                                              // chú rể cầm nhẫn trên tay rồi đeo vào tay cô dâu
       const u = ease(seg(T, 4.6, 5.6)); P.ring1.visible = true;
       P.ring1.position.lerpVectors(_h1, _h2, u); P.ring1.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
     }
-    if (T >= 5.6) this.once('a', () => { sparks.emit(P.ring1.position.x, P.ring1.position.y, P.ring1.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 0.8; });
+    if (T >= 5.6) this.once('a', () => { sparks.emit(P.ring1.position.x, P.ring1.position.y, P.ring1.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 0.8; rg.kick = rb.kick = 2.5; });
     if (T >= 7.4) {                                                                              // cô dâu đeo nhẫn cho chú rể
       const u = ease(seg(T, 9.3, 10.3)); P.ring2.visible = true;
       P.ring2.position.lerpVectors(_h2, _h1, u); P.ring2.position.y += lerp(0.07, 0.015, u) + Math.sin(T * 5) * 0.008 * (1 - u);
     }
-    if (T >= 10.3) this.once('b', () => { sparks.emit(P.ring2.position.x, P.ring2.position.y, P.ring2.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 1; });
+    if (T >= 10.3) this.once('b', () => { sparks.emit(P.ring2.position.x, P.ring2.position.y, P.ring2.position.z, 26, GOLD_SPARK, 1.4, 2.2); chime(); crowd.target = 1; rg.kick = rb.kick = 2.5; });
     if (T >= 11.5 && T < 15 && T - this.hAt > 0.25) { this.hAt = T; hearts.emit(rand() * 1.2 - 0.6, CFG.stage.h + 1.7, -16.9, 2, PINKS, 0.5, 1.1); }
     const q = seg(T, 3, 12), f = cam.free;                                                       // máy quay tiến dần vào
     f.pos.set(0, lerp(2.15, 2.0, q), lerp(-12.8, -13.8, q));
@@ -3102,11 +3351,16 @@ const ceremonyAct = {
   cakeScene(T) {
     const [g, b] = couple, rg = coupleRigs[0], rb = coupleRigs[1], P = this.props;
     const k = ease(seg(T, 0, 1.6)), feed = ease(seg(T, 5.6, 6.4)), down = ease(seg(T, 10.4, 11.4));
-    const gap = 0.55, zz = lerp(-17.2, CER.z, k);                            // đứng cạnh nhau sau bánh, hai tay chụm trên tầng dưới; lúc đút bánh mới quay vào nhau
+    const gap = lerp(0.55, 0.68, feed), zz = lerp(-17.2, CER.z, k);                            // đứng cạnh nhau sau bánh, hai tay chụm trên tầng dưới; lúc đút bánh mới quay vào nhau
     g.position.set(lerp(-0.85, -gap, k), CFG.stage.h, zz); b.position.set(lerp(0.85, gap, k), CFG.stage.h, zz);
-    const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6)), tn = lerp(CER.turn, 0.45, feed);
+    const raise = ease(seg(T, 0.4, 1.6)), feedUp = ease(seg(T, 6.4, 7.6)), tn = lerp(CER.turn, 0.8, feed);
     g.rotation.y = lerp(0.15, tn, k); b.rotation.y = lerp(-0.15, -tn, k);
-    const bob = T > 8 && T < 10.4 ? Math.sin(T * 9) * 0.06 : 0;
+    const cutting = T >= 1.4 && T < 5.4, feeding = T >= 5.4 && T < 10.4;                       // cắt: nhìn lưỡi dao; đút bánh: nhìn nhau; còn lại nhìn khán giả
+    rg.look = feeding ? b.localToWorld(_lkB.set(0, 1.5, 0.1)) : cutting ? P.knife.position : camera.position;
+    rb.look = feeding ? g.localToWorld(_lkG.set(0, 1.5, 0.1)) : cutting ? P.knife.position : camera.position;
+    rg.lookK = rb.lookK = feeding ? 0.5 : cutting ? 0.25 : 0.6;
+    rg.body.rotation.x = rb.body.rotation.x = 0.1 * raise * (1 - feed);                         // chồm người về phía bánh lúc cắt
+    const bob =T > 8 && T < 10.4 ? Math.sin(T * 9) * 0.06 : 0;
     const a = lerp(lerp(0, -1.6, raise), -2.55, feedUp) * (1 - down) + bob;
     reachArm(rg, 'R', -a, 1, raise * lerp(CER.reach, 0.12, feedUp)); reachArm(rb, 'L', -a, -1, raise * lerp(CER.reach, 0.12, feedUp));   // hai tay trong khép vào giữa, khuỷu gập
     const K = P.knife;
@@ -3116,7 +3370,7 @@ const ceremonyAct = {
       K.position.z -= 0.14 * ease(seg(T, 2.4, 3.6)) - 0.14 * ease(seg(T, 4.4, 5.2));
     } else K.visible = false;
     if (T >= 3.6) this.once('cut', () => {
-      sparks.emit(0, 2.6, -16.9, 50, CONFETTI, 1.8, 3.2); audio.noise(0.18, 0.25, 500); audio.tone(520, 0.12, 'square', 0.05); chime();
+      sparks.emit(0, 2.6, -16.9, 50, CONFETTI, 1.8, 3.2); audio.noise(0.18, 0.25, 500); audio.tone(520, 0.12, 'square', 0.05); chime(); rg.kick = rb.kick = 2;
       crowd.target = 1;                                                                          // khán giả vỗ tay (file tiếng vỗ tay, phát trong updateCrowd)
     });
     P.pieceG.visible = P.pieceB.visible = T >= 5.6 && T < 8.6;
@@ -3133,7 +3387,7 @@ const ceremonyAct = {
     const P = this.props, [g, b] = couple;
     P.ring1.visible = P.ring2.visible = P.knife.visible = P.pieceG.visible = P.pieceB.visible = false;
     g.position.set(-0.85, CFG.stage.h, -17.2); g.rotation.y = 0.15; b.position.set(0.85, CFG.stage.h, -17.2); b.rotation.y = -0.15;
-    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); });
+    coupleRigs.forEach((r) => { poseWalker(r, 0, 0, false); r.armL.rotation.z = r.armR.rotation.z = 0; r.elbowL.rotation.set(0, 0, 0); r.elbowR.rotation.set(0, 0, 0); r.body.rotation.set(0, 0, 0); r.look = null; r.lookK = 0.6; });
     coupleTags[0].visible = coupleTags[1].visible = true;
     player.group.visible = true; couple[2].visible = true; cam.free = null; crowd.target = 0;
     if (!ledHoldUntil) ledScreen.set('CHÚC MỪNG HẠNH PHÚC');
